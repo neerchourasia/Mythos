@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mythos: Chronicles of the Pantheon</title>
+<style>
+:root { --gold: #ffd700; --blue: #0e6284; --dark: #14141e; --panel: #1d1d2c; --light: #f4f4f9; --c: #ffd700; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Georgia, serif; background: radial-gradient(circle at 50% -10%, #2a2a44, var(--dark) 60%) fixed; color: var(--light); min-height: 100vh; }
+button { font-family: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+#app { max-width: 760px; margin: 0 auto; padding: 14px 14px 60px; }
+.screen { display: none; }
+.screen.show { display: block; animation: rise .35s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.gone { display: none !important; }
+h1, h2, h3 { margin: 0; }
+.gold { color: var(--gold); }
+
+/* ---------- intro + travel overlays ---------- */
+#intro, #travel { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; background: radial-gradient(circle at 50% 30%, #2d2d4a, #0a0a12); }
+.card-box { max-width: 470px; width: 100%; text-align: center; border: 3px double var(--gold); border-radius: 14px; padding: 26px; background: rgba(0,0,0,.45); }
+.card-box h2 { color: var(--gold); text-transform: uppercase; letter-spacing: 3px; margin-bottom: 12px; }
+.card-box p { font-style: italic; line-height: 1.6; }
+.big-btn { display: block; width: 100%; margin-top: 16px; padding: 15px; font-size: 1.1rem; font-weight: bold; color: #fff; background: var(--blue); border: 2px solid var(--gold); border-radius: 10px; box-shadow: 0 5px 0 rgba(0,0,0,.5); transition: transform .12s, box-shadow .12s, background .12s; }
+.big-btn:hover { background: #147fa9; transform: translateY(-2px); box-shadow: 0 7px 0 rgba(0,0,0,.5); }
+.big-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.5); }
+.big-btn.go { background: #9a1b1b; border-color: #ff6b6b; font-size: 1.35rem; letter-spacing: 2px; animation: pulse 1.2s ease-in-out infinite; }
+.big-btn.go:hover { background: #b91c1c; }
+@keyframes pulse { 50% { box-shadow: 0 5px 0 rgba(0,0,0,.5), 0 0 26px 6px rgba(255,90,90,.6); } }
+.t-card { text-align: center; max-width: 420px; width: 100%; }
+.t-card .t-text { font-size: 1.2rem; margin-bottom: 18px; color: var(--gold); }
+.t-road { position: relative; height: 56px; border-bottom: 3px dashed rgba(255,215,0,.5); }
+.t-walker { position: absolute; bottom: 2px; left: 0; font-size: 2.4rem; animation: walk 1.2s linear forwards; }
+@keyframes walk { to { left: calc(100% - 2.4rem); } }
+.t-card small { display: block; margin-top: 14px; opacity: .55; }
+
+/* ---------- map ---------- */
+.m-head { text-align: center; padding: 10px 0 14px; border-bottom: 2px double var(--gold); margin-bottom: 14px; }
+.m-head h1 { color: var(--gold); text-transform: uppercase; font-size: 1.7rem; text-shadow: 0 2px 0 #7a5a00, 0 5px 10px rgba(0,0,0,.6); }
+.m-head p { margin: 6px 0 0; opacity: .85; font-size: .92rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 12px; }
+.card { position: relative; text-align: left; padding: 14px 14px 14px 16px; background: linear-gradient(135deg, var(--panel), #12121c); border: 1px solid rgba(255,255,255,.12); border-left: 6px solid var(--c); border-radius: 10px; box-shadow: 0 5px 0 rgba(0,0,0,.45); transition: transform .15s, box-shadow .15s; }
+.card:hover { transform: translateY(-3px); box-shadow: 0 8px 0 rgba(0,0,0,.45), 0 0 20px color-mix(in srgb, var(--c) 55%, transparent); }
+.card .em { font-size: 2.2rem; }
+.card b { display: block; color: var(--c); margin-top: 2px; }
+.card span { display: block; font-size: .85rem; opacity: .85; }
+.card .stars { color: var(--gold); letter-spacing: 2px; margin-top: 6px; font-size: .9rem; }
+.card .seal { position: absolute; right: 10px; top: 8px; font-size: 1.4rem; color: var(--c); text-shadow: 0 0 10px var(--c); }
+.card.won { background: linear-gradient(135deg, color-mix(in srgb, var(--c) 18%, #1d1d2c), #12121c); }
+details.codex { margin-top: 16px; background: var(--panel); border: 1px solid #a78bfa; border-radius: 10px; padding: 10px 14px; }
+details.codex summary { cursor: pointer; font-weight: bold; color: #c4b5fd; }
+.entry { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+.entry:last-child { border: 0; }
+.entry b { color: var(--c); }
+.entry.locked { opacity: .45; }
+.entry.locked b { color: #9ca3af; }
+.entry small { display: block; font-style: italic; margin-top: 2px; }
+
+/* ---------- prep ---------- */
+.back { background: none; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 8px 14px; margin-bottom: 12px; }
+.back:hover { border-color: var(--gold); }
+.p-head { display: flex; align-items: center; gap: 14px; padding: 14px; border-left: 6px solid var(--c); border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 22%, #1d1d2c), #12121c); }
+.p-head .em { font-size: 3rem; }
+.p-head h2 { color: var(--c); font-size: 1.3rem; }
+.p-head small { opacity: .85; display: block; margin-top: 3px; }
+.stage { display: inline-block; font-size: .72rem; letter-spacing: 2px; text-transform: uppercase; color: var(--c); border: 1px solid var(--c); border-radius: 20px; padding: 2px 10px; margin-bottom: 6px; }
+.panel { margin-top: 12px; padding: 14px; background: var(--panel); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; line-height: 1.6; }
+.panel h3 { color: var(--c); font-size: .95rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.panel p { margin: 6px 0; }
+.scout { border-left: 4px solid #38bdf8; }
+.opt { display: block; width: 100%; text-align: left; margin-top: 9px; padding: 14px; font-size: 1rem; background: #2a2a3d; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; box-shadow: 0 4px 0 rgba(0,0,0,.4); transition: transform .12s, background .12s; }
+.opt:hover:not(:disabled) { background: #36364f; transform: translateY(-2px); }
+.opt.right { background: #064e3b; border-color: #10b981; }
+.opt.wrong { background: #5b1010; border-color: #ef4444; }
+.opt:disabled { opacity: .85; }
+.fb { margin-top: 12px; padding: 12px; border-radius: 8px; font-weight: bold; }
+.fb.ok { background: rgba(16,185,129,.15); border: 1px solid #10b981; color: #34d399; }
+.fb.no { background: rgba(239,68,68,.15); border: 1px solid #ef4444; color: #fca5a5; }
+
+/* ---------- mission ---------- */
+.ms-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.ms-top h2 { font-size: 1.05rem; color: var(--c); text-align: right; }
+.arena { position: relative; height: 300px; border-radius: 14px; overflow: hidden; border: 2px solid var(--c); background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--c) 38%, #000), #07070d 85%); display: grid; grid-template-columns: 1fr 1fr; padding: 12px; }
+.scenery { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; font-size: 2rem; text-align: center; letter-spacing: 14px; opacity: .22; white-space: nowrap; overflow: hidden; background: linear-gradient(transparent, rgba(0,0,0,.6)); }
+.side { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; padding-bottom: 34px; z-index: 1; }
+.side .nm { font-size: .8rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; text-align: center; }
+.sprite { font-size: 4.4rem; line-height: 1; filter: drop-shadow(0 6px 8px rgba(0,0,0,.7)); transition: transform .15s; }
+.sprite.foe { font-size: 5.6rem; animation: idle 2.4s ease-in-out infinite; }
+@keyframes idle { 50% { transform: translateY(-6px) scale(1.04); } }
+.sprite.hit { animation: flash .35s; }
+@keyframes flash { 25% { transform: translateX(-10px); filter: brightness(3) drop-shadow(0 0 12px #fff); } 60% { transform: translateX(8px); } }
+.sprite.slam { animation: lunge .4s; }
+@keyframes lunge { 40% { transform: translateX(46px) scale(1.15); } }
+.foe-col .sprite.slam { animation: lungeL .4s; }
+@keyframes lungeL { 40% { transform: translateX(-46px) scale(1.15); } }
+.sprite.dead { animation: none; transform: scale(.3) rotate(80deg); opacity: 0; transition: all .6s; }
+.bar { width: 90%; height: 14px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.3); border-radius: 8px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #16a34a, #4ade80); transition: width .4s; }
+.bar.e i { background: linear-gradient(90deg, #b91c1c, #f87171); }
+.num { font-size: .78rem; opacity: .9; }
+.pips { display: flex; gap: 5px; align-items: center; font-size: .72rem; }
+.pips b { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); display: inline-block; }
+.pips.sta b.on { background: #38bdf8; border-color: #bae6fd; }
+.pips.foc b.on { background: #facc15; border-color: #fef08a; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; min-height: 22px; }
+.chip { font-size: .68rem; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25); }
+.float { position: absolute; z-index: 5; font-size: 1.7rem; font-weight: bold; text-shadow: 0 2px 6px #000; pointer-events: none; animation: floatUp 1s ease-out forwards; }
+.float.dmg { color: #ff6b6b; } .float.heal { color: #4ade80; } .float.blk { color: #7dd3fc; font-size: 1.2rem; } .float.miss { color: #cbd5e1; font-size: 1.2rem; }
+@keyframes floatUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-70px); } }
+.intent { margin-top: 10px; padding: 12px 14px; border-radius: 10px; border: 2px solid var(--k, #888); background: rgba(0,0,0,.45); line-height: 1.45; }
+.intent .lab { font-size: .7rem; letter-spacing: 2px; opacity: .75; }
+.intent b { font-size: 1.15rem; }
+.intent em { display: block; font-style: normal; opacity: .9; }
+.intent small { display: block; margin-top: 4px; color: #fde68a; }
+.k-QUICK { --k: #38bdf8; } .k-HEAVY { --k: #ef4444; } .k-MAGIC { --k: #c084fc; } .k-CHARGE { --k: #fb923c; } .k-HIDDEN { --k: #94a3b8; }
+.log { margin-top: 10px; height: 104px; overflow-y: auto; padding: 8px 12px; font-size: .86rem; line-height: 1.45; background: rgba(0,0,0,.4); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; }
+.log div { padding: 1px 0; }
+.log .new { color: #fff; font-weight: bold; }
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.act { text-align: left; padding: 13px 12px; min-height: 76px; background: #26263a; border: 2px solid rgba(255,255,255,.2); border-radius: 10px; box-shadow: 0 5px 0 rgba(0,0,0,.5); transition: transform .12s, box-shadow .12s, background .12s; }
+.act b { display: block; font-size: 1rem; }
+.act small { display: block; margin-top: 3px; opacity: .8; font-size: .76rem; line-height: 1.3; }
+.act:hover:not(:disabled) { background: #34344f; transform: translateY(-2px); box-shadow: 0 7px 0 rgba(0,0,0,.5); }
+.act:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.5); }
+.act:disabled { opacity: .38; }
+.act.strike { border-color: #f59e0b; } .act.guard { border-color: #60a5fa; } .act.dodge { border-color: #34d399; } .act.sig { border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, #26263a); }
+.act.favor { grid-column: 1 / -1; border-color: #fde047; background: linear-gradient(135deg, #5b4a00, #2d2400); text-align: center; }
+.act.favor.used { opacity: .4; }
+.act .key { float: right; opacity: .5; font-size: .7rem; border: 1px solid rgba(255,255,255,.4); border-radius: 4px; padding: 0 5px; }
+.end { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5,5,10,.88); border-radius: 14px; animation: rise .4s ease-out; }
+.end .card-box { border-color: var(--c); }
+.end h2 { font-size: 1.8rem; }
+.end.lose h2 { color: #f87171; }
+.end .epi { margin-top: 10px; font-size: .9rem; opacity: .85; border-top: 1px dashed rgba(255,255,255,.3); padding-top: 10px; }
+.wrap { position: relative; }
+
+@media (max-width: 480px) {
+    .sprite { font-size: 3.4rem; } .sprite.foe { font-size: 4.4rem; } .arena { height: 280px; }
+    .act small { font-size: .7rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } .t-walker { left: calc(100% - 2.4rem); } }
+
+</style>
+</head>
+<body>
+<div id="intro">
+  <div class="card-box">
+    <h2>Mythos</h2>
+    <p>Fourteen gods carry fourteen tales, and each ends in a fight. Travel to their lands, study the story, and earn the favor of Olympus. Then march into battle, read your enemy, and win with your own hands.</p>
+    <p>There are no easy victories here.</p>
+    <button class="big-btn" id="enter">Enter Olympus</button>
+  </div>
+</div>
+<div id="travel" class="gone"></div>
+<main id="app">
+  <section id="s-map" class="screen show">
+    <div class="m-head"><h1>🏛️ The Pantheon</h1><p>Choose a god's mission. <b class="gold"><span id="count">0</span>/14</b> completed. Higher stars mean harder fights.</p></div>
+    <div class="grid" id="cards"></div>
+    <details class="codex"><summary>📖 Myth Codex (<span id="codex-n">0</span>/14 unlocked)</summary><div id="codex-list"></div></details>
+  </section>
+  <section id="s-prep" class="screen"></section>
+  <section id="s-mission" class="screen"></section>
+</main>
+<script>
+var GODS_TEXT = [
+ {
+  "name": "Heracles: The 12 Labors",
+  "col": "#f59e0b",
+  "epi": "Heracles' labors earned him a place among the stars, and Hera herself blessed his marriage to Hebe.",
+  "lore": "Hera drove you mad out of jealousy! Seeking redemption, you travel to serve King Eurystheus. Your first major task brings you to the swamplands of Lerna to face a multi-headed serpent...",
+  "q": "Why must Heracles perform the 12 Labors?",
+  "right": "As a penance because Hera drove him mad.",
+  "wq": [
+   "To win a bet against Zeus.",
+   "To earn the throne of Mycenae."
+  ],
+  "ok": "✨ CORRECT! Knowledge verified.",
+  "boss": "The Hydra rises! If you cut off a head without fire, two grow back.",
+  "win": "👑 VICTORY! You burn the stumps. Hydra slain! Realm Complete!"
+ },
+ {
+  "name": "Zeus: The Titanomachy",
+  "col": "#facc15",
+  "epi": "Zeus drew lots with his brothers: the sky for him, the sea for Poseidon, the Underworld for Hades.",
+  "lore": "Cronus swallows his children to stop a prophecy. Rhea tricks him with a swaddled rock and hides you in Crete. You grow up and forge the Master Thunderbolt!",
+  "q": "How did Rhea save baby Zeus from Cronus?",
+  "right": "She fed Cronus a swaddled rock instead.",
+  "wq": [
+   "He hid in a cave until Cronus forgot him.",
+   "He bribed Cronus with golden apples."
+  ],
+  "ok": "✨ CORRECT! Mastery verified.",
+  "boss": "Cronus throws mountains down. Command the skies!",
+  "win": "👑 VICTORY! Lightning tears through Cronus, sealing him in Tartarus!"
+ },
+ {
+  "name": "Dionysus: The Pirate Voyage",
+  "col": "#a855f7",
+  "epi": "Dionysus's rites spread across Greece, and the pirates' dolphin descendants still leap beside ships.",
+  "lore": "Captured by Tyrrhenian pirates who mistake you for a prince, you are tied to the mast. Time to unleash your divine presence and teach them a lesson in wine madness...",
+  "q": "What mistake did the pirates make?",
+  "right": "They mistook a god for a helpless mortal prince.",
+  "wq": [
+   "They knew he was a god and feared him.",
+   "They mistook him for Poseidon in disguise."
+  ],
+  "ok": "✨ CORRECT! Divine madness ready.",
+  "boss": "Oars turn to snakes and ivy wraps the deck. Defeat the crew!",
+  "win": "👑 VICTORY! The terrified pirates jump overboard and turn into dolphins!"
+ },
+ {
+  "name": "Poseidon: Storming Odysseus",
+  "col": "#38bdf8",
+  "epi": "Odysseus drifted ten years before he reached Ithaca, every wave a reminder of the Earth-Shaker's grudge.",
+  "lore": "Odysseus blinded your son, Polyphemus. As the hero boasts from his boat, your son cries out for vengeance. Raise your trident over the Mediterranean ocean!",
+  "q": "Why is Poseidon hunting Odysseus across the seas?",
+  "right": "Because Odysseus blinded Poseidon's son, Polyphemus.",
+  "wq": [
+   "Because Odysseus stole his trident.",
+   "Because Odysseus insulted his temple."
+  ],
+  "ok": "✨ CORRECT! The Earth-Shaker rises.",
+  "boss": "Odysseus's ship maneuvers near jagged rocks. Strike the tide!",
+  "win": "👑 VICTORY! Enormous waves swallow his vanguard ships. Vengeance served!"
+ },
+ {
+  "name": "Athena: Medusa's Mirror",
+  "col": "#94a3b8",
+  "epi": "Perseus gave Medusa's head to Athena, who set it upon her aegis as a ward against all enemies.",
+  "lore": "Medusa's gaze turns anyone into stone. To help the hero Perseus finish this task without getting petrified, you provide him with your mirror-polished Aegis shield...",
+  "q": "What happens if you look directly into Medusa's eyes?",
+  "right": "You instantly turn into a solid stone statue.",
+  "wq": [
+   "She stays frozen a moment, then recovers.",
+   "Nothing; her gaze only makes you sleepy."
+  ],
+  "ok": "✨ CORRECT! Strategic advantage prepared.",
+  "boss": "Medusa slithers forward. She tries to force you to look at her!",
+  "win": "👑 VICTORY! You bypass her curse completely and land a clean tactical strike!"
+ },
+ {
+  "name": "Hades: Underworld Balance",
+  "col": "#818cf8",
+  "epi": "Every autumn Persephone descends, and the world remembers the pomegranate by letting the leaves fall.",
+  "lore": "Persephone traveled to the Underworld. By ancient law, eating food inside the realm binds you to it. She eats six pomegranate seeds from your garden...",
+  "q": "What happens if you consume food inside the Underworld?",
+  "right": "You are bound to return or stay in the realm.",
+  "wq": [
+   "Nothing at all; you may leave freely.",
+   "You forget your own name."
+  ],
+  "ok": "✨ CORRECT! Underworld law verified.",
+  "boss": "Demeter is freezing the earth above in grief. Settle the contract balance.",
+  "win": "👑 CONTRACT SECURED! 6 months below (Winter), 6 months above (Summer). The seasons are born!"
+ },
+ {
+  "name": "Artemis: The Star Hunter",
+  "col": "#e2e8f0",
+  "epi": "Orion's constellation still rises as Scorpius sets: the two are never seen in the sky together.",
+  "lore": "Orion boasted he would kill every animal on Earth. To safeguard the wilderness, the earth spawns a giant scorpion. Artemis tracks Orion to defend nature...",
+  "q": "Why was the giant scorpion sent to stop Orion?",
+  "right": "Because Orion boasted he would kill every beast on Earth.",
+  "wq": [
+   "Orion asked to marry Artemis.",
+   "He stole her silver bow."
+  ],
+  "ok": "✨ CORRECT! The hunt begins.",
+  "boss": "Orion runs across the mountaintop. Draw your silver bow!",
+  "win": "👑 HUNT COMPLETE! Orion is stopped and transformed into a constellation fleeing the Scorpion!"
+ },
+ {
+  "name": "Apollo: Serpent of Delphi",
+  "col": "#fb923c",
+  "epi": "Apollo built his oracle on the ruins of Python's lair, and Delphi became the navel of the world.",
+  "lore": "The dark fissure of Delphi is guarded by Python, a giant serpent spreading toxic plagues. Armed with solar arrows, you descend into the pitch-black caverns...",
+  "q": "What beast did Apollo defeat to claim Delphi?",
+  "right": "Python, the monstrous primordial serpent.",
+  "wq": [
+   "Typhon, the storm giant.",
+   "The Nemean Lion."
+  ],
+  "ok": "✨ CORRECT! Solar light unlocked.",
+  "boss": "The cave is pitch black. Python coils in the dark, tracking your breath.",
+  "win": "👑 ORACLE CLAIMED! Light exposes Python's weak spots, allowing a perfect final shot!"
+ },
+ {
+  "name": "Hera: The Sentry Guard",
+  "col": "#ec4899",
+  "epi": "The peacock's tail carries Argus's hundred eyes forever, a jewel in Hera's chariot.",
+  "lore": "Hera commands Argus, a giant covered with 100 eyes, to catch Zeus's secret schemes. When Hermes attempts to lull Argus to sleep, you must defend your watchman...",
+  "q": "What physical trait did Hera's guard Argus have?",
+  "right": "He possessed 100 eyes covering his entire body.",
+  "wq": [
+   "He was a one-eyed giant.",
+   "He had a hundred hands."
+  ],
+  "ok": "✨ CORRECT! Queen's vision secured.",
+  "boss": "Hermes plays his enchanted sleep flute. Block the spell waves!",
+  "win": "👑 SENTRY DEFENDED! Hermes retreats. You place Argus's 100 eyes onto the peacock's feathers!"
+ },
+ {
+  "name": "Ares: Escape the Bronze Jar",
+  "col": "#ef4444",
+  "epi": "Hermes freed Ares at last, and the god of war never forgot that his own strength once rattled in a jar.",
+  "lore": "The Aloadae giants ambushed you, locking you in chains inside a massive bronze storage jar for 13 months. Hermes has cracked the seal; vengeance calls...",
+  "q": "Where was Ares trapped by the giant brothers?",
+  "right": "Packed inside a giant bronze storage jar for 13 months.",
+  "wq": [
+   "Locked inside a golden cage on Olympus.",
+   "Sunk to the depths of Tartarus."
+  ],
+  "ok": "✨ CORRECT! Bloodlust meter full.",
+  "boss": "The giants boast outside. Draw your heavy divine war broadsword!",
+  "win": "👑 WALLS SMASHED! Your counter-assault breaks their front lines, securing the gate!"
+ },
+ {
+  "name": "Hephaestus: Golden Throne Trap",
+  "col": "#ea580c",
+  "epi": "The forge of Olympus never cooled again: Hephaestus crafted Achilles's shield and Zeus's thunderbolts.",
+  "lore": "Cast off Olympus as a baby, you mastered the forge under the sea. You forge a beautiful golden throne for Hera. When she sits, mechanical spring-locks trap her...",
+  "q": "How did Hephaestus trap Hera to force his return?",
+  "right": "By gifting her a golden throne with hidden spring-locks.",
+  "wq": [
+   "By poisoning her wine.",
+   "By stealing her crown."
+  ],
+  "ok": "✨ CORRECT! Forge ingenuity verified.",
+  "boss": "The gods beg you to unlock the seat. Settle your price.",
+  "win": "👑 COUNCIL SEAT GAINED! You return to Mount Olympus in glory as the God of Crafting!"
+ },
+ {
+  "name": "Aphrodite: Living Ivory Blessing",
+  "col": "#f472b6",
+  "epi": "Galatea and Pygmalion were wed, and their son Paphos gave his name to Aphrodite's sacred city.",
+  "lore": "Born from ocean sea foam off Cyprus, your presence commands love. When King Pygmalion carves a flawless statue, his pure devotion moves your heart...",
+  "q": "Where was the goddess Aphrodite born?",
+  "right": "From the ocean sea foam off the coast of Cyprus.",
+  "wq": [
+   "From a lotus on the Nile.",
+   "From a drop of Zeus's blood."
+  ],
+  "ok": "✨ CORRECT! Blessing aura unlocked.",
+  "boss": "You stand before the silent ivory sculpture. Manifest love's absolute power.",
+  "win": "👑 STATUE AWAKENED! The stone warms into the living woman Galatea. Myth Completed!"
+ },
+ {
+  "name": "Demeter: Grove Retribution",
+  "col": "#84cc16",
+  "epi": "Erysichthon's hunger could not be filled, and so the oaks of Demeter's groves grew thick and untouched.",
+  "lore": "King Erysichthon cuts down your ancient sacred oak tree. Enraged by this extreme disrespect for agriculture, you call upon Famine to curse him forever...",
+  "q": "How did Demeter punish the greedy King?",
+  "right": "Cursing him with an unquenchable, absolute Famine.",
+  "wq": [
+   "She turned him into a stag.",
+   "She flooded his kingdom."
+  ],
+  "ok": "✨ CORRECT! Nature's wrath ready.",
+  "boss": "The mad king tries to ruin the remaining forest grove. Seal the perimeter.",
+  "win": "👑 GROVE SECURED! Nature isolates the threat, proving the true power of the harvest!"
+ },
+ {
+  "name": "Hermes: The First Theft",
+  "col": "#2dd4bf",
+  "epi": "Apollo gave Hermes the golden herding staff in trade, and the lyre became the voice of poetry itself.",
+  "lore": "Born at dawn, by noon you invented the lyre. Craving mischief, you steal fifty sacred cattle from Apollo, walking them backward into a cave to hide tracks...",
+  "q": "What did newborn baby Hermes steal from Apollo?",
+  "right": "A sacred herd of fifty divine cattle.",
+  "wq": [
+   "A golden lyre from Apollo's temple.",
+   "The winged sandals of Zeus."
+  ],
+  "ok": "✨ CORRECT! Master trickster verified.",
+  "boss": "Apollo corners you, furious about his herd. Defuse his anger with art!",
+  "win": "👑 MYTH COMPLETE! Apollo loves the music, forgives you, and names you Messenger of the Gods!"
+ }
+];
+
+/* Per-god mission setup. Text (lore/quiz) comes from text.js, merged by index. */
+var MISSIONS = [
+ { hero:'🦁', place:'the swamps of Lerna', scenery:'🌿🌾🌿🌾🌿', mission:'Slay the Lernaean Hydra', diff:1, tune:1.65,
+   hint:'Every strike without fire grows extra heads, and each head hits harder. Fire Torch burns the stumps and stops the regrowth.',
+   enemy:{ n:'Lernaean Hydra', e:'🐲', hp:105, passive:'regrow' },
+   moves:[ {n:'Venom Spit',kind:'QUICK',dmg:11,w:2}, {n:'Crushing Bite',kind:'HEAVY',dmg:22,w:2}, {n:'Head Swarm',kind:'MAGIC',dmg:15,w:1} ],
+   strike:'Club Smash', guard:'Lion-Skin Guard', dodge:'Sidestep',
+   sig:{ n:'Fire Torch', i:'🔥', d:'18 dmg, burns for 4 turns, stops regrowth', fx:[['dmg',18],['dot',7,4]] } },
+
+ { hero:'⚡', place:'the slopes of Mount Othrys', scenery:'⛰️🌩️⛰️🌩️⛰️', mission:'Overthrow Cronus', diff:2, tune:1.3,
+   hint:"The Titan's hide halves your strikes. Thunderbolt pierces his armor, and he is wide open while he gathers power.",
+   enemy:{ n:'Cronus, King of Titans', e:'👹', hp:125, passive:'armor' },
+   moves:[ {n:'Hurl Mountain',kind:'HEAVY',dmg:25,w:2}, {n:"Titan's Backhand",kind:'QUICK',dmg:13,w:2}, {n:'Devouring Maw',kind:'CHARGE',w:1,then:{n:'Swallow Whole',kind:'HEAVY',dmg:34}} ],
+   strike:'Lightning Jab', guard:'Cloud Shield', dodge:'Wind Dash',
+   sig:{ n:'Master Thunderbolt', i:'⚡', d:'48 damage that ignores armor', fx:[['dmg',48]] } },
+
+ { hero:'🍇', place:'the open Aegean', scenery:'🌊⛵🌊⛵🌊', mission:'Teach the Pirates a Lesson', diff:2, tune:1.25,
+   hint:'The crew patches wounds every other turn. Vine Hallucination stuns them for two turns and stops the repairs.',
+   enemy:{ n:'Tyrrhenian Pirate Crew', e:'🏴‍☠️', hp:115, passive:'heal' },
+   moves:[ {n:'Cutlass Flurry',kind:'QUICK',dmg:14,w:2}, {n:'Cannon Volley',kind:'HEAVY',dmg:24,w:2}, {n:'Rowdy Chant',kind:'MAGIC',dmg:12,w:1} ],
+   strike:'Thyrsus Strike', guard:'Vine Guard', dodge:'Drunken Sway',
+   sig:{ n:'Vine Hallucination', i:'🍇', d:'10 dmg and stuns for 2 turns', fx:[['dmg',10],['stun',2]] } },
+
+ { hero:'🔱', place:'the Mediterranean Sea', scenery:'🌊🌊🌊🌊🌊', mission:'Storm Odysseus Under', diff:2, tune:1.1,
+   hint:'His crew repairs the ship every other turn, but drowning damage stops them. Whirlpool keeps him sinking.',
+   enemy:{ n:"Odysseus's Flagship", e:'🚢', hp:120, passive:'heal' },
+   moves:[ {n:'Ballista Volley',kind:'QUICK',dmg:14,w:2}, {n:'Battering Ram',kind:'HEAVY',dmg:25,w:2}, {n:'Prayer to Athena',kind:'MAGIC',dmg:15,w:1} ],
+   strike:'Trident Thrust', guard:'Water Wall', dodge:'Wave Glide',
+   sig:{ n:'Charybdis Whirlpool', i:'🌀', d:'12 dmg, then 9 per turn for 3 turns', fx:[['dmg',12],['dot',9,3]] } },
+
+ { hero:'🦉', place:"Medusa's island", scenery:'🏝️🗿🏝️🗿🏝️', mission:"Medusa's Mirror", diff:3, tune:1.1,
+   hint:"Her Stone Gaze is magic: guarding fails, dodging halves it. The Aegis Mirror reflects any attack back at her for extra damage.",
+   enemy:{ n:'Medusa the Gorgon', e:'🐍', hp:125, passive:'none' },
+   moves:[ {n:'Snake Bite',kind:'QUICK',dmg:14,w:2}, {n:'Stone Gaze',kind:'MAGIC',dmg:24,w:2}, {n:'Tail Slam',kind:'HEAVY',dmg:24,w:1} ],
+   strike:'Spear Thrust', guard:'Aegis Block', dodge:'Shadow Step',
+   sig:{ n:'Aegis Mirror', i:'🪞', d:'Reflect the next attack at 1.3x', fx:[['reflect',1]] } },
+
+ { hero:'💀', place:'the gates of the Underworld', scenery:'🌑🔥🌑🔥🌑', mission:'The Six-Month Treaty', diff:3, tune:1.0,
+   hint:'Her grief grows stronger as she weakens. The Treaty halves her damage for four turns and restores your strength.',
+   enemy:{ n:"Demeter's Winter Wrath", e:'🥶', hp:125, passive:'enrage' },
+   moves:[ {n:'Frost Spear',kind:'QUICK',dmg:14,w:2}, {n:'Famine Blow',kind:'HEAVY',dmg:25,w:2}, {n:'Blizzard',kind:'MAGIC',dmg:20,w:2} ],
+   strike:'Bident Strike', guard:'Shadow Guard', dodge:'Phase Through',
+   sig:{ n:'Six-Month Treaty', i:'⚖️', d:'Enemy deals half damage for 4 turns, heal 15', fx:[['weak',0.5,4],['heal',15]] } },
+
+ { hero:'🏹', place:'the moonlit mountains', scenery:'🌲🌙🌲🌙🌲', mission:'Hunt Orion', diff:3, tune:1.75,
+   hint:'When Orion draws his bow he cannot defend: strike for 1.5x damage. Moon-arrows pin him in place.',
+   enemy:{ n:'Orion the Boaster', e:'🧔', hp:120, passive:'none' },
+   moves:[ {n:"Hunter's Arrows",kind:'QUICK',dmg:15,w:3}, {n:'Club Swing',kind:'HEAVY',dmg:25,w:2}, {n:'Drawing the Bow',kind:'CHARGE',w:2,then:{n:'Piercing Shot',kind:'HEAVY',dmg:34}} ],
+   strike:'Arrow Shot', guard:'Hide in Brush', dodge:'Forest Leap',
+   sig:{ n:'Moon-arrows', i:'🌙', d:'34 dmg and pins him for 1 turn', fx:[['dmg',34],['stun',1]] } },
+
+ { hero:'☀️', place:'the cave of Delphi', scenery:'🪨🕯️🪨🕯️🪨', mission:'Slay Python', diff:4, tune:0.8,
+   hint:'In the dark 4 in 10 of your strikes miss. Solar Flare lights the cave for five turns and blasts the serpent.',
+   enemy:{ n:'Python, Serpent of Delphi', e:'🐉', hp:135, passive:'dark' },
+   moves:[ {n:'Toxic Spit',kind:'MAGIC',dmg:18,w:2}, {n:'Coil Crush',kind:'HEAVY',dmg:28,w:2}, {n:'Lunge',kind:'QUICK',dmg:15,w:2} ],
+   strike:'Gold Arrow', guard:'Radiant Guard', dodge:'Sun Flicker',
+   sig:{ n:'Solar Flare', i:'☀️', d:'26 dmg and lights the cave for 5 turns', fx:[['dmg',26],['lit',5]] } },
+
+ { hero:'🦚', place:"Argus's watchtower", scenery:'🏛️🦚🏛️🦚🏛️', mission:"Defend Argus", diff:4, tune:0.8,
+   hint:"Hermes' lullaby is magic: guarding is useless. Peacock Crest wards off the next two attacks completely.",
+   enemy:{ n:'Hermes the Sleep-Bringer', e:'🪈', hp:135, passive:'none' },
+   moves:[ {n:'Enchanted Lullaby',kind:'MAGIC',dmg:21,w:3}, {n:'Caduceus Strike',kind:'QUICK',dmg:15,w:2}, {n:'Winged Kick',kind:'HEAVY',dmg:26,w:2} ],
+   strike:'Scepter Strike', guard:'Royal Barrier', dodge:'Veil Step',
+   sig:{ n:'Peacock Crest', i:'🦚', d:'Ward: blocks the next 2 attacks', fx:[['ward',2]] } },
+
+ { hero:'⚔️', place:"the giants' camp", scenery:'⛺🪨⛺🪨⛺', mission:'Escape the Bronze Jar', diff:4, tune:0.65,
+   hint:'The giants rage when hurt. Berserker Rage doubles your next three strikes, so finish them before they enrage.',
+   enemy:{ n:'The Aloadae Giants', e:'🧌', hp:125, passive:'enrage' },
+   moves:[ {n:'Fist Flurry',kind:'QUICK',dmg:16,w:2}, {n:'Boulder Throw',kind:'HEAVY',dmg:28,w:2}, {n:'Shaking Roar',kind:'MAGIC',dmg:17,w:1} ],
+   strike:'Sword Slash', guard:'Shield Wall', dodge:'Battle Roll',
+   sig:{ n:'Berserker Rage', i:'💢', d:'10 dmg, your next 3 strikes deal double', fx:[['dmg',10],['rage',3]] } },
+
+ { hero:'🔨', place:'the forge of Olympus', scenery:'🔥⚒️🔥⚒️🔥', mission:'The Golden Throne', diff:4, tune:0.7,
+   hint:'Olympian armor halves your strikes. Forge Strike cracks it open so your hits deal 1.5x for three turns.',
+   enemy:{ n:'Olympian Guard Captain', e:'🪑', hp:130, passive:'armor' },
+   moves:[ {n:'Spear Thrust',kind:'QUICK',dmg:16,w:2}, {n:'Shield Bash',kind:'HEAVY',dmg:26,w:2}, {n:'War Horn',kind:'MAGIC',dmg:15,w:1} ],
+   strike:'Hammer Blow', guard:'Anvil Guard', dodge:'Spark Dodge',
+   sig:{ n:'Forge Strike', i:'🔨', d:'20 dmg, enemy takes 1.5x strikes for 3 turns', fx:[['dmg',20],['vuln',3]] } },
+
+ { hero:'🌹', place:"Pygmalion's studio", scenery:'🌹🏛️🌹🏛️🌹', mission:'Awaken the Ivory Statue', diff:3, tune:1.9,
+   hint:'The statue telegraphs a huge slam. Guard it, then punish. Divine Aura heals you and stuns it for a turn.',
+   enemy:{ n:'Ivory Golem', e:'🗿', hp:120, passive:'none' },
+   moves:[ {n:'Rock Chips',kind:'QUICK',dmg:12,w:2}, {n:'Stone Fist',kind:'HEAVY',dmg:24,w:2}, {n:'Marble Chill',kind:'MAGIC',dmg:16,w:1}, {n:'Raises Both Arms',kind:'CHARGE',w:1,then:{n:'Pillar Slam',kind:'HEAVY',dmg:34}} ],
+   strike:'Rose Whip', guard:'Petal Shield', dodge:'Graceful Dodge',
+   sig:{ n:'Divine Aura', i:'🕊️', d:'Heal 35 and stun for 1 turn', fx:[['heal',35],['stun',1]] } },
+
+ { hero:'🌾', place:'the sacred grove', scenery:'🌳🌾🌳🌾🌳', mission:'Grove Retribution', diff:5, tune:0.9,
+   hint:'He grows desperate as he weakens. Thorn Wall punishes every attack that lands and weakens his blows for four turns.',
+   enemy:{ n:'King Erysichthon', e:'🤴', hp:140, passive:'enrage' },
+   moves:[ {n:'Soldier Rush',kind:'QUICK',dmg:15,w:2}, {n:'Axe Chop',kind:'HEAVY',dmg:27,w:2}, {n:'Famine Madness',kind:'MAGIC',dmg:21,w:2} ],
+   strike:'Sickle Cut', guard:'Root Barrier', dodge:'Vine Vault',
+   sig:{ n:'Thorn Wall', i:'🌿', d:'Thorns hurt him 12 per hit for 4 turns, he deals 0.6x', fx:[['thorns',4],['weak',0.6,4]] } },
+
+ { hero:'🪽', place:'the cave of Mount Cyllene', scenery:'🐄🌞🐄🌞🐄', mission:'Outwit Apollo', diff:5, tune:1.1,
+   hint:"Apollo's Sun Bow charge hits like a meteor, so guard it. When he is furious he is fast: dodge the quick arrows.",
+   enemy:{ n:'Apollo, Lord of the Sun', e:'☀️', hp:140, passive:'enrage' },
+   moves:[ {n:'Golden Arrows',kind:'QUICK',dmg:16,w:3}, {n:'Solar Wrath',kind:'HEAVY',dmg:28,w:2}, {n:'Prophecy',kind:'MAGIC',dmg:18,w:2}, {n:'Draws the Sun Bow',kind:'CHARGE',w:1,then:{n:'Meteor Arrow',kind:'HEAVY',dmg:40}} ],
+   strike:'Caduceus Jab', guard:'Wing Guard', dodge:'Winged Dash',
+   sig:{ n:'Tortoise Lyre', i:'🎶', d:'12 dmg, stun 1 turn, heal 22', fx:[['dmg',12],['stun',1],['heal',22]] } }
+];
+
+/* Turn-based battle engine: no DOM, so it can be simulated in Node. */
+var KIND = {
+    QUICK:  { i: '⚡', l: 'Quick Strike', tip: 'DODGE avoids it completely. GUARD halves it.' },
+    HEAVY:  { i: '💥', l: 'Heavy Blow',   tip: 'GUARD cuts it by 75%. Dodging does not help.' },
+    MAGIC:  { i: '🌀', l: 'Dark Magic',   tip: 'GUARD does nothing. DODGE halves it. Wards and mirrors stop it.' },
+    CHARGE: { i: '🔥', l: 'Charging Up',  tip: 'No attack this turn, but a huge blow follows. STRIKE now for 1.5x damage!' }
+};
+
+var GODS = MISSIONS.map(function (m, i) { return Object.assign({}, GODS_TEXT[i], m); });
+
+function rint(r, a, b) { return a + Math.floor(r() * (b - a + 1)); }
+
+function pickMove(b, r) {
+    if (b.forced) { var f = b.forced; b.forced = null; return f; }
+    var ms = b.g.moves, tot = 0, i;
+    for (i = 0; i < ms.length; i++) tot += ms[i].w || 1;
+    var x = r() * tot;
+    for (i = 0; i < ms.length; i++) { x -= ms[i].w || 1; if (x <= 0) return ms[i]; }
+    return ms[0];
+}
+function nextIntent(b, r) {
+    b.intent = pickMove(b, r);
+    b.hidden = r() < (b.g.diff - 1) * 0.07;
+}
+
+function newBattle(g, favorEarned, r) {
+    r = r || Math.random;
+    var b = {
+        g: g, php: 100, pmax: 100, ehp: g.enemy.hp, emax: g.enemy.hp,
+        sta: 3, foc: 1, scale: (0.85 + 0.07 * g.diff) * (g.tune || 1), turn: 1,
+        stun: 0, burn: { t: 0, d: 0 }, weak: { t: 0, m: 1 }, vuln: 0, rage: 0, ward: 0,
+        reflect: false, thorns: 0, lit: 0, heads: 0,
+        favor: !!favorEarned, used: false, forced: null, over: null, hidden: false, intent: null
+    };
+    nextIntent(b, r);
+    return b;
+}
+
+/* The one-time Divine Favor boost, usable at any moment and free (takes no turn). */
+function useFavor(b) {
+    if (!b.favor || b.used || b.over) return null;
+    b.used = true;
+    var heal = Math.min(40, b.pmax - b.php);
+    b.php += heal; b.sta = 3; b.foc = 3; b.rage = Math.max(b.rage, 2);
+    return { log: ['✨ Divine Favor! You heal ' + heal + ', refill Stamina and Focus, and your next 2 strikes deal double.'],
+             ev: [{ side: 'p', type: 'heal', v: heal }] };
+}
+
+function act(b, a, r) {
+    r = r || Math.random;
+    var g = b.g, e = g.enemy, L = [], V = [];
+    if (b.over) return { log: L, ev: V };
+    if ((a === 'guard' || a === 'dodge') && b.sta < 1) return { log: ['Not enough Stamina!'], ev: V, invalid: true };
+    if (a === 'sig' && b.foc < 3) return { log: ['You need 3 Focus for ' + g.sig.n + '.'], ev: V, invalid: true };
+
+    var wasCharge = b.intent.kind === 'CHARGE';
+
+    /* ---- player action ---- */
+    if (a === 'strike') {
+        var d = rint(r, 13, 19);
+        if (b.rage > 0) { d *= 2; b.rage--; }
+        if (b.vuln > 0) d *= 1.5;
+        if (e.passive === 'armor' && !(b.vuln > 0)) d *= 0.5;
+        if (wasCharge && b.stun <= 0) d *= 1.5;
+        d = Math.round(d);
+        if (e.passive === 'dark' && !(b.lit > 0) && r() < 0.4) {
+            d = 0; L.push('Your ' + g.strike + ' misses in the darkness!'); V.push({ side: 'e', type: 'miss' });
+        } else {
+            b.ehp -= d; L.push('You ' + g.strike + ' for ' + d + '.'); V.push({ side: 'e', type: 'dmg', v: d });
+            if (e.passive === 'regrow' && !(b.burn.t > 0)) {
+                b.heads = Math.min(5, b.heads + 1);
+                L.push('Heads grow back from the wound! (' + b.heads + ' extra heads)');
+            }
+        }
+        b.foc = Math.min(3, b.foc + 1);
+    } else if (a === 'sig') {
+        b.foc -= 3; L.push('You unleash ' + g.sig.n + '!');
+        g.sig.fx.forEach(function (f) {
+            switch (f[0]) {
+                case 'dmg': b.ehp -= f[1]; V.push({ side: 'e', type: 'dmg', v: f[1] }); break;
+                case 'dot': b.burn = { t: f[2], d: f[1] }; b.heads = 0; break;
+                case 'stun': b.stun = f[1]; break;
+                case 'reflect': b.reflect = true; break;
+                case 'weak': b.weak = { t: f[2], m: f[1] }; break;
+                case 'heal': { var h = Math.min(f[1], b.pmax - b.php); b.php += h; V.push({ side: 'p', type: 'heal', v: h }); break; }
+                case 'ward': b.ward = f[1]; break;
+                case 'rage': b.rage = f[1]; break;
+                case 'vuln': b.vuln = f[1]; break;
+                case 'thorns': b.thorns = f[1]; break;
+                case 'lit': b.lit = f[1]; break;
+            }
+        });
+    } else if (a === 'guard') {
+        L.push('You brace with ' + g.guard + '.');
+    } else if (a === 'dodge') {
+        L.push('You ready ' + g.dodge + '.');
+    }
+
+    if (b.ehp <= 0) { b.ehp = 0; b.over = 'win'; return { log: L, ev: V }; }
+
+    function riposte() {
+        var rp = 8; if (e.passive === 'armor' && !(b.vuln > 0)) rp = 4;
+        b.ehp -= rp; L.push('Your counter-attack hits for ' + rp + '.'); V.push({ side: 'e', type: 'dmg', v: rp });
+    }
+
+    /* ---- enemy turn ---- */
+    var m = b.intent, stunnedNow = false;
+    if (b.stun > 0) {
+        b.stun--; stunnedNow = true;
+        L.push(e.n + ' is stunned and loses its turn!');
+    } else if (m.kind === 'CHARGE') {
+        L.push(e.n + ' gathers terrible power: ' + m.n + '...');
+        b.forced = m.then;
+    } else {
+        var raw = m.dmg * b.scale + b.heads * 3;
+        if (e.passive === 'enrage' && b.ehp < b.emax * 0.4) raw *= 1.35;
+        if (b.weak.t > 0) raw *= b.weak.m;
+        var mult = 1;
+        if (a === 'guard') mult = m.kind === 'HEAVY' ? 0.25 : (m.kind === 'QUICK' ? 0.5 : 1);
+        if (a === 'dodge') mult = m.kind === 'QUICK' ? 0 : (m.kind === 'MAGIC' ? 0.5 : 1);
+        var dmg = Math.round(raw * mult);
+
+        if (b.reflect) {
+            b.reflect = false;
+            var rd = Math.round(raw * 1.3); b.ehp -= rd;
+            L.push('The mirror throws ' + m.n + ' back for ' + rd + '!'); V.push({ side: 'e', type: 'dmg', v: rd });
+            dmg = 0;
+        } else if (b.ward > 0) {
+            b.ward--; dmg = 0; L.push('Your ward absorbs ' + m.n + '!'); V.push({ side: 'p', type: 'block' });
+        } else if (mult === 0) {
+            L.push('You dodge ' + m.n + ' completely and counter!'); V.push({ side: 'p', type: 'block' });
+            b.foc = Math.min(3, b.foc + 1); riposte();
+        } else {
+            if (a === 'guard' && m.kind === 'HEAVY') { b.foc = Math.min(3, b.foc + 1); riposte(); }
+            L.push(m.n + (mult < 1 ? ' is reduced and hits you for ' : ' hits you for ') + dmg + '.');
+        }
+        if (dmg > 0) {
+            b.php -= dmg; V.push({ side: 'p', type: 'dmg', v: dmg });
+            if (b.thorns > 0) { b.ehp -= 12; L.push('Thorns tear into ' + e.n + ' for 12!'); V.push({ side: 'e', type: 'dmg', v: 12 }); }
+        }
+    }
+
+    /* ---- end of turn ---- */
+    if (b.ehp > 0 && b.burn.t > 0) {
+        b.ehp -= b.burn.d; b.burn.t--;
+        L.push(g.sig.n + ' still hurts ' + e.n + ' for ' + b.burn.d + '.'); V.push({ side: 'e', type: 'dmg', v: b.burn.d });
+    }
+    if (e.passive === 'heal' && b.turn % 2 === 0 && b.ehp > 0 && b.ehp < b.emax && !(b.burn.t > 0) && !stunnedNow) {
+        b.ehp = Math.min(b.emax, b.ehp + 8); L.push(e.n + ' patches itself up (+8).'); V.push({ side: 'e', type: 'heal', v: 8 });
+    }
+    if (b.weak.t > 0) b.weak.t--;
+    if (b.vuln > 0) b.vuln--;
+    if (b.lit > 0) b.lit--;
+    if (b.thorns > 0) b.thorns--;
+    b.sta = Math.min(3, b.sta + 1);
+    b.turn++;
+
+    if (b.ehp <= 0) { b.ehp = 0; b.over = 'win'; }
+    else if (b.php <= 0) { b.php = 0; b.over = 'lose'; }
+    else if (!stunnedNow) nextIntent(b, r);
+    return { log: L, ev: V };
+}
+
+if (typeof module !== 'undefined') module.exports = { GODS: GODS, newBattle: newBattle, act: act, useFavor: useFavor, KIND: KIND };
+
+/* Damage the enemy's current intent would do this turn if you take no counter-action (shown in the UI). */
+function estimate(b) {
+    var m = b.intent; if (m.kind === 'CHARGE') return 0;
+    var raw = m.dmg * b.scale + b.heads * 3;
+    if (b.g.enemy.passive === 'enrage' && b.ehp < b.emax * 0.4) raw *= 1.35;
+    if (b.weak.t > 0) raw *= b.weak.m;
+    return Math.round(raw);
+}
+if (typeof module !== 'undefined') module.exports.estimate = estimate;
+
+/* Screens: map -> getting ready -> mission. Needs engine.js (GODS, newBattle, act, useFavor, estimate, KIND). */
+(function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var won = [];
+    try { won = JSON.parse(localStorage.getItem('mythos_won') || '[]'); } catch (e) {}
+    function save() { try { localStorage.setItem('mythos_won', JSON.stringify(won)); } catch (e) {} }
+
+    var cur = 0, favorEarned = false, battle = null, lock = false, travelTimer = null;
+    var short = function (g) { return g.name.split(':')[0]; };
+    var stars = function (n) { return new Array(n + 1).join('★') + new Array(6 - n).join('☆'); };
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+    function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+
+    function show(id) {
+        ['s-map', 's-prep', 's-mission'].forEach(function (s) { $(s).classList.toggle('show', s === id); });
+        window.scrollTo(0, 0);
+    }
+
+    /* ---------- travelling between places ---------- */
+    function travel(text, cb) {
+        var t = $('travel');
+        t.innerHTML = '<div class="t-card"><div class="t-text">' + esc(text) + '</div><div class="t-road"><div class="t-walker">🚶</div></div><small>click to skip</small></div>';
+        t.classList.remove('gone');
+        var done = false;
+        function go() { if (done) return; done = true; clearTimeout(travelTimer); t.classList.add('gone'); cb(); }
+        t.onclick = go;
+        travelTimer = setTimeout(go, 1300);
+    }
+
+    /* ---------- map ---------- */
+    function renderMap() {
+        $('cards').innerHTML = GODS.map(function (g, i) {
+            var w = won.indexOf(i) >= 0;
+            return '<button class="card' + (w ? ' won' : '') + '" data-i="' + i + '" style="--c:' + g.col + '">' +
+                (w ? '<div class="seal">★</div>' : '') +
+                '<div class="em">' + g.hero + '</div><b>' + esc(short(g)) + '</b><span>' + esc(g.mission) + '</span>' +
+                '<span>📍 ' + esc(g.place) + '</span><div class="stars" title="Difficulty">' + stars(g.diff) + '</div></button>';
+        }).join('');
+        $('count').textContent = won.length;
+        $('codex-n').textContent = won.length;
+        $('codex-list').innerHTML = GODS.map(function (g, i) {
+            var w = won.indexOf(i) >= 0;
+            return '<div class="entry' + (w ? '' : ' locked') + '" style="--c:' + g.col + '">' +
+                (w ? '<b>' + esc(g.name) + '</b><small>' + esc(g.epi) + '</small>' : '<b>???</b><small>Complete this mission to unlock.</small>') + '</div>';
+        }).join('');
+    }
+    $('cards').addEventListener('click', function (e) {
+        var b = e.target.closest('.card'); if (!b) return;
+        var i = +b.dataset.i;
+        travel('Travelling to ' + GODS[i].place + '...', function () { cur = i; favorEarned = false; renderPrep(); show('s-prep'); });
+    });
+
+    /* ---------- "getting ready for the mission" ---------- */
+    function renderPrep() {
+        var g = GODS[cur];
+        var opts = shuffle([{ t: g.right, ok: true }, { t: g.wq[0] }, { t: g.wq[1] }]);
+        $('s-prep').style.setProperty('--c', g.col);
+        $('s-prep').innerHTML =
+            '<button class="back" id="p-back">← Back to the map</button>' +
+            '<div class="p-head"><div class="em">' + g.hero + '</div><div><div class="stage">Getting ready for the mission</div><h2>' + esc(g.name) + '</h2>' +
+            '<small>📍 ' + esc(g.place) + ' · Mission: ' + esc(g.mission) + ' · ' + stars(g.diff) + '</small></div></div>' +
+            '<div class="panel"><h3>📜 Read the passage</h3><p>' + esc(g.lore) + '</p><p>' + esc(g.boss) + '</p></div>' +
+            '<div class="panel scout"><h3>🔭 Scout\'s report</h3><p>' + esc(g.hint) + '</p></div>' +
+            '<div class="panel"><h3>❓ Answer for Divine Favor</h3><p><strong>' + esc(g.q) + '</strong></p>' +
+            '<p style="font-size:.85rem;opacity:.8">A correct answer earns a one-time boost you can use at any moment in the fight: heal 40, refill Stamina and Focus, and double your next 2 strikes.</p>' +
+            '<div id="p-opts">' + opts.map(function (o, k) { return '<button class="opt" data-k="' + k + '">' + esc(o.t) + '</button>'; }).join('') + '</div>' +
+            '<div id="p-fb"></div></div><div id="p-go"></div>';
+        $('p-back').onclick = function () { renderMap(); show('s-map'); };
+        $('p-opts').onclick = function (e) {
+            var b = e.target.closest('.opt'); if (!b || b.disabled) return;
+            var o = opts[+b.dataset.k];
+            [].forEach.call($('p-opts').children, function (x, k) {
+                x.disabled = true; if (opts[k].ok) x.classList.add('right'); else if (x === b) x.classList.add('wrong');
+            });
+            favorEarned = !!o.ok;
+            $('p-fb').innerHTML = o.ok
+                ? '<div class="fb ok">' + esc(g.ok) + ' ✨ Divine Favor earned! You can use it once during the mission.</div>'
+                : '<div class="fb no">✖ Not quite: the answer was "' + esc(g.right) + '". No Divine Favor this time, so the mission will be much harder.</div>';
+            $('p-go').innerHTML = '<button class="big-btn go" id="p-start">⚔️ MISSION TIME!</button>';
+            $('p-start').onclick = function () { travel('Marching to ' + g.place + '...', startMission); };
+            $('p-go').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+    }
+
+    /* ---------- the mission itself ---------- */
+    function startMission() {
+        var g = GODS[cur];
+        battle = newBattle(g, favorEarned); lock = false;
+        var sc = $('s-mission'); sc.style.setProperty('--c', g.col);
+        sc.innerHTML =
+            '<div class="ms-top"><button class="back" id="m-flee" style="margin:0">🏃 Flee to the map</button><h2>' + esc(g.mission) + '</h2></div>' +
+            '<div class="wrap"><div class="arena" id="arena"><div class="scenery">' + g.scenery + '</div>' +
+            '<div class="side"><div class="nm">' + esc(short(g)) + ' (you)</div><div class="sprite" id="hero">' + g.hero + '</div>' +
+            '<div class="bar"><i id="php"></i></div><div class="num" id="phptxt"></div>' +
+            '<div class="pips sta" id="sta" title="Stamina: Guard and Dodge cost 1, +1 each turn">Stamina <span id="stap"></span></div>' +
+            '<div class="pips foc" id="foc" title="Focus: 3 powers your special move">Focus <span id="focp"></span></div></div>' +
+            '<div class="side foe-col"><div class="nm">' + esc(g.enemy.n) + '</div><div class="sprite foe" id="foe">' + g.enemy.e + '</div>' +
+            '<div class="bar e"><i id="ehp"></i></div><div class="num" id="ehptxt"></div><div class="chips" id="chips"></div></div></div>' +
+            '<div id="endbox"></div></div>' +
+            '<div class="intent" id="intent"></div><div class="log" id="log"></div>' +
+            '<div class="acts" id="acts">' +
+            '<button class="act strike" data-a="strike"><span class="key">1</span><b>⚔️ ' + esc(g.strike) + '</b><small>13-19 damage · +1 Focus</small></button>' +
+            '<button class="act guard" data-a="guard"><span class="key">2</span><b>🛡️ ' + esc(g.guard) + '</b><small>Costs 1 Stamina · cuts Heavy blows by 75%, Quick by 50%</small></button>' +
+            '<button class="act dodge" data-a="dodge"><span class="key">3</span><b>💨 ' + esc(g.dodge) + '</b><small>Costs 1 Stamina · avoids Quick attacks, halves Magic</small></button>' +
+            '<button class="act sig" data-a="sig"><span class="key">4</span><b>' + g.sig.i + ' ' + esc(g.sig.n) + '</b><small>Needs 3 Focus · ' + esc(g.sig.d) + '</small></button>' +
+            (favorEarned
+                ? '<button class="act favor" data-a="favor"><span class="key">F</span><b>✨ Divine Favor (once)</b><small>Free action: heal 40, refill Stamina and Focus, next 2 strikes double</small></button>'
+                : '<button class="act favor used" disabled><b>🔒 No Divine Favor</b><small>You missed the question in the preparation screen.</small></button>') +
+            '</div>';
+        $('m-flee').onclick = function () { renderMap(); show('s-map'); };
+        $('acts').onclick = function (e) { var b = e.target.closest('.act'); if (b && !b.disabled) doAct(b.dataset.a); };
+        $('log').innerHTML = '<div class="new">The mission begins: ' + esc(g.mission) + '. Read the enemy\'s intent each turn!</div>';
+        renderBattle(); show('s-mission');
+    }
+
+    function pips(n, max) { var s = ''; for (var i = 0; i < max; i++) s += '<b class="' + (i < n ? 'on' : '') + '"></b>'; return s; }
+    function renderBattle() {
+        var b = battle, g = b.g;
+        $('php').style.width = (100 * b.php / b.pmax) + '%'; $('phptxt').textContent = b.php + ' / ' + b.pmax + ' HP';
+        $('ehp').style.width = (100 * b.ehp / b.emax) + '%'; $('ehptxt').textContent = b.ehp + ' / ' + b.emax + ' HP';
+        $('stap').innerHTML = pips(b.sta, 3); $('focp').innerHTML = pips(b.foc, 3);
+        var c = [];
+        if (b.heads) c.push('🐲 +' + b.heads + ' heads'); if (b.stun > 0) c.push('💫 Stunned ' + b.stun); if (b.burn.t > 0) c.push('🔥 ' + g.sig.n + ' ' + b.burn.t);
+        if (b.weak.t > 0) c.push('⬇️ Weakened ' + b.weak.t); if (b.vuln > 0) c.push('🎯 Exposed ' + b.vuln); if (b.lit > 0) c.push('💡 Lit ' + b.lit);
+        if (b.ward > 0) c.push('🛡️ Ward ' + b.ward); if (b.reflect) c.push('🪞 Mirror'); if (b.thorns > 0) c.push('🌿 Thorns ' + b.thorns); if (b.rage > 0) c.push('💢 Double x' + b.rage);
+        if (g.enemy.passive === 'dark' && !(b.lit > 0)) c.push('🌑 Dark');
+        if (g.enemy.passive === 'armor' && !(b.vuln > 0)) c.push('🛡️ Armored');
+        if (g.enemy.passive === 'enrage' && b.ehp < b.emax * 0.4) c.push('😡 Enraged');
+        $('chips').innerHTML = c.map(function (x) { return '<span class="chip">' + esc(x) + '</span>'; }).join('');
+
+        var m = b.intent, k = KIND[m.kind], box = $('intent');
+        if (b.over) { box.className = 'intent'; box.innerHTML = ''; }
+        else if (b.hidden) {
+            box.className = 'intent k-HIDDEN';
+            box.innerHTML = '<div class="lab">👁️ ENEMY INTENT</div><b>❓ Hidden</b><em>' + esc(g.enemy.n) + ' hides its next move. Trust your instincts!</em>';
+        } else {
+            box.className = 'intent k-' + m.kind;
+            box.innerHTML = '<div class="lab">👁️ ENEMY INTENT</div><b>' + k.i + ' ' + esc(m.n) + '</b><em>' + k.l +
+                (m.kind === 'CHARGE' ? '' : ' · about ' + estimate(b) + ' damage') + '</em><small>💡 ' + esc(k.tip) + '</small>';
+        }
+        var acts = $('acts').children;
+        [].forEach.call(acts, function (x) {
+            var a = x.dataset.a, off = !!b.over || (a === 'guard' || a === 'dodge') && b.sta < 1 || a === 'sig' && b.foc < 3;
+            if (a === 'favor') off = !!b.over || b.used;
+            if (a) x.disabled = off; if (a === 'favor' && b.used) x.classList.add('used');
+        });
+    }
+
+    function popup(side, type, v) {
+        var arena = $('arena'), el = document.createElement('div');
+        el.className = 'float ' + (type === 'dmg' ? 'dmg' : type === 'heal' ? 'heal' : type === 'block' ? 'blk' : 'miss');
+        el.textContent = type === 'dmg' ? '-' + v : type === 'heal' ? '+' + v : type === 'block' ? 'BLOCKED!' : 'MISS';
+        el.style.left = (side === 'e' ? 66 : 20) + '%'; el.style.top = '30%';
+        arena.appendChild(el); setTimeout(function () { el.remove(); }, 1000);
+        if (type === 'dmg') {
+            var sp = $(side === 'e' ? 'foe' : 'hero'); sp.classList.remove('hit'); void sp.offsetWidth; sp.classList.add('hit');
+        }
+    }
+    function playEvents(res) {
+        res.ev.forEach(function (x, n) { setTimeout(function () { popup(x.side, x.type, x.v); }, n * 220); });
+        var log = $('log');
+        [].forEach.call(log.querySelectorAll('.new'), function (x) { x.classList.remove('new'); });
+        res.log.forEach(function (t) { var d = document.createElement('div'); d.className = 'new'; d.textContent = t; log.appendChild(d); });
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function doAct(a) {
+        if (!battle || lock || battle.over) return;
+        var res = a === 'favor' ? useFavor(battle) : act(battle, a);
+        if (!res) return;
+        if (res.invalid) { playEvents(res); return; }
+        lock = true; setTimeout(function () { lock = false; }, 300);
+        var sp = $('hero'); if (a === 'strike' || a === 'sig') { sp.classList.remove('slam'); void sp.offsetWidth; sp.classList.add('slam'); }
+        playEvents(res); renderBattle();
+        if (battle.over) setTimeout(endMission, 900);
+    }
+
+    function endMission() {
+        var b = battle, g = b.g, w = b.over === 'win', i = GODS.indexOf(g);
+        $(w ? 'foe' : 'hero').classList.add('dead');
+        if (w && won.indexOf(i) < 0) { won.push(i); save(); }
+        $('endbox').innerHTML = '<div class="end ' + (w ? 'win' : 'lose') + '"><div class="card-box">' +
+            (w ? '<h2>🏆 Victory!</h2><p>' + esc(g.win) + '</p><div class="epi">' + esc(g.epi) + '</div>'
+               : '<h2>☠ Defeated</h2><p>' + esc(g.enemy.n) + ' was too strong this time. Study its pattern: what counters each kind of attack?</p>') +
+            (w ? '' : '<button class="big-btn" id="e-retry">🔄 Retry the mission' + (favorEarned ? ' (Divine Favor restored)' : '') + '</button>') +
+            '<button class="big-btn" id="e-map">🗺️ Back to the map</button></div></div>';
+        if (!w) $('e-retry').onclick = startMission;
+        $('e-map').onclick = function () { renderMap(); show('s-map'); };
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (!$('s-mission').classList.contains('show')) return;
+        var m = { '1': 'strike', '2': 'guard', '3': 'dodge', '4': 'sig', 'f': 'favor', 'F': 'favor' }[e.key];
+        if (m) { var btn = document.querySelector('.act[data-a="' + m + '"]'); if (btn && !btn.disabled) doAct(m); }
+    });
+
+    $('enter').onclick = function () { $('intro').classList.add('gone'); };
+    renderMap();
+    window.__mythos = { GODS: GODS, get battle() { return battle; }, doAct: doAct, won: function () { return won; } };
+})();
+
+</script>
+</body>
+</html>
