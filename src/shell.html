@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mythos: Chronicles of the Pantheon</title>
+<meta name="theme-color" content="#14141e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 /*CSS*/
 </style>
@@ -29,6 +33,12 @@
 </main>
 <script>
 /*JS*/
+</script>
+<script>
+/* Save the game for offline play (needs http/https, so it is skipped when opened as a plain file). */
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+}
 </script>
 </body>
 </html>
