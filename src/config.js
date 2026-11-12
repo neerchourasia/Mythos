@@ -77,7 +77,7 @@ var MISSIONS = [
    strike:'Hammer Blow', guard:'Anvil Guard', dodge:'Spark Dodge',
    sig:{ n:'Forge Strike', i:'🔨', d:'20 dmg, enemy takes 1.5x strikes for 3 turns', fx:[['dmg',20],['vuln',3]] } },
 
- { hero:'🌹', place:"Pygmalion's studio", scenery:'🌹🏛️🌹🏛️🌹', mission:'Awaken the Ivory Statue', diff:3, tune:1.9,
+ { hero:'🌹', place:"Pygmalion's studio", scenery:'🌹🏛️🌹🏛️🌹', mission:'Awaken the Ivory Statue', diff:3, stars:5, tune:1.9,
    hint:'The statue telegraphs a huge slam. Guard it, then punish. Divine Aura heals you and stuns it for a turn.',
    enemy:{ n:'Ivory Golem', e:'🗿', hp:120, passive:'none' },
    moves:[ {n:'Rock Chips',kind:'QUICK',dmg:12,w:2}, {n:'Stone Fist',kind:'HEAVY',dmg:24,w:2}, {n:'Marble Chill',kind:'MAGIC',dmg:16,w:1}, {n:'Raises Both Arms',kind:'CHARGE',w:1,then:{n:'Pillar Slam',kind:'HEAVY',dmg:34}} ],

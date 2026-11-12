@@ -1,5 +1,5 @@
 /* Offline support: after the first visit the browser keeps a copy of the game. */
-var CACHE = 'mythos-v1';
+var CACHE = 'mythos-v2';
 var FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {

@@ -51,6 +51,19 @@ details.codex summary { cursor: pointer; font-weight: bold; color: #c4b5fd; }
 .entry.locked b { color: #9ca3af; }
 .entry small { display: block; font-style: italic; margin-top: 2px; }
 
+.section-title { margin: 24px 0 10px; color: var(--gold); text-transform: uppercase; letter-spacing: 2px; font-size: 1.05rem; }
+.lockbar, .unlocked { margin-bottom: 12px; padding: 12px 14px; border-radius: 10px; line-height: 1.5; font-size: .92rem; }
+.lockbar { background: rgba(148,163,184,.12); border: 1px dashed #94a3b8; color: #cbd5e1; }
+.unlocked { background: rgba(16,185,129,.12); border: 1px solid #10b981; color: #6ee7b7; }
+.card.locked { opacity: .42; filter: grayscale(.8); cursor: not-allowed; }
+.card.locked:hover { transform: none; box-shadow: 0 5px 0 rgba(0,0,0,.45); }
+details.codex + details.codex { margin-top: 10px; }
+details.codex.final { border-color: #fde047; }
+details.codex.final summary { color: #fde68a; }
+.cx-note { margin: 8px 0; opacity: .85; font-size: .92rem; }
+.cx-head { margin: 14px 0 4px; font-weight: bold; letter-spacing: 1px; color: var(--gold); text-transform: uppercase; font-size: .82rem; }
+.unlock-note { margin-top: 12px; padding: 10px; border-radius: 8px; background: rgba(250,204,21,.14); border: 1px solid #facc15; color: #fde68a; font-weight: bold; }
+
 /* ---------- prep ---------- */
 .back { background: none; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 8px 14px; margin-bottom: 12px; }
 .back:hover { border-color: var(--gold); }

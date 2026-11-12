@@ -7,6 +7,9 @@ var KIND = {
 };
 
 var GODS = MISSIONS.map(function (m, i) { return Object.assign({}, GODS_TEXT[i], m); });
+var MORTALS = MORTAL_MISSIONS.map(function (m, i) { return Object.assign({}, MORTAL_TEXT[i], m, { mortal: true }); });
+/* Everything playable: gods first (indices 0-13), then mortals (14-31). Saved progress uses these indices. */
+var ALL = GODS.concat(MORTALS);
 
 function rint(r, a, b) { return a + Math.floor(r() * (b - a + 1)); }
 

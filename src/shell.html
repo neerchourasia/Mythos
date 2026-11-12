@@ -16,7 +16,7 @@
 <div id="intro">
   <div class="card-box">
     <h2>Mythos</h2>
-    <p>Fourteen gods carry fourteen tales, and each ends in a fight. Travel to their lands, study the story, and earn the favor of Olympus. Then march into battle, read your enemy, and win with your own hands.</p>
+    <p>Fourteen gods carry fourteen tales, and each ends in a fight. Travel to their lands, study the story, and earn the favor of Olympus. Then march into battle, read your enemy, and win with your own hands. Finish every god's tale and the mortals' stories open too.</p>
     <p>There are no easy victories here.</p>
     <button class="big-btn" id="enter">Enter Olympus</button>
   </div>
@@ -24,9 +24,15 @@
 <div id="travel" class="gone"></div>
 <main id="app">
   <section id="s-map" class="screen show">
-    <div class="m-head"><h1>🏛️ The Pantheon</h1><p>Choose a god's mission. <b class="gold"><span id="count">0</span>/14</b> completed. Higher stars mean harder fights.</p></div>
+    <div class="m-head"><h1>🏛️ The Pantheon</h1><p>Gods <b class="gold"><span id="count">0</span>/14</b> · Mortals <b class="gold"><span id="mcount">0</span>/18</b>. Higher stars mean harder fights.</p></div>
+    <h2 class="section-title">⚡ The Gods</h2>
     <div class="grid" id="cards"></div>
-    <details class="codex"><summary>📖 Myth Codex (<span id="codex-n">0</span>/14 unlocked)</summary><div id="codex-list"></div></details>
+    <h2 class="section-title">🧑 Mortal Quests</h2>
+    <div id="mortal-lock"></div>
+    <div class="grid" id="mcards"></div>
+    <h2 class="section-title">📖 Myth Codex</h2>
+    <details class="codex"><summary>Level 1: The Gods (<span id="codex-l1">0/14</span>) · <span id="codex-n">0</span>/14 myths</summary><div id="codex-list"></div></details>
+    <details class="codex final"><summary>🌟 Final Level: All Myths (<span id="codex-final-state">locked</span>)</summary><div id="codex-final"></div></details>
   </section>
   <section id="s-prep" class="screen"></section>
   <section id="s-mission" class="screen"></section>

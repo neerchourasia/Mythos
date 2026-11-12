@@ -28,37 +28,66 @@
     }
 
     /* ---------- map ---------- */
-    function renderMap() {
-        $('cards').innerHTML = GODS.map(function (g, i) {
-            var w = won.indexOf(i) >= 0;
-            return '<button class="card' + (w ? ' won' : '') + '" data-i="' + i + '" style="--c:' + g.col + '">' +
-                (w ? '<div class="seal">★</div>' : '') +
-                '<div class="em">' + g.hero + '</div><b>' + esc(short(g)) + '</b><span>' + esc(g.mission) + '</span>' +
-                '<span>📍 ' + esc(g.place) + '</span><div class="stars" title="Difficulty">' + stars(g.diff) + '</div></button>';
-        }).join('');
-        $('count').textContent = won.length;
-        $('codex-n').textContent = won.length;
-        $('codex-list').innerHTML = GODS.map(function (g, i) {
-            var w = won.indexOf(i) >= 0;
-            return '<div class="entry' + (w ? '' : ' locked') + '" style="--c:' + g.col + '">' +
-                (w ? '<b>' + esc(g.name) + '</b><small>' + esc(g.epi) + '</small>' : '<b>???</b><small>Complete this mission to unlock.</small>') + '</div>';
-        }).join('');
+    var GODS_N = GODS.length, MORT_N = MORTALS.length;
+    function isWon(i) { return won.indexOf(i) >= 0; }
+    function countWon(from, n) { var c = 0; for (var i = from; i < from + n; i++) if (isWon(i)) c++; return c; }
+    function godsDone() { return countWon(0, GODS_N) === GODS_N; }          /* Myth Codex Level 1 complete */
+    function mortalsDone() { return countWon(GODS_N, MORT_N) === MORT_N; }  /* Myth Codex Final Level unlocked */
+
+    function cardHtml(g, i, locked) {
+        var w = isWon(i);
+        if (locked) {
+            return '<button class="card locked" disabled style="--c:' + g.col + '"><div class="em">🔒</div><b>' + esc(short(g)) + '</b><span>Locked</span></button>';
+        }
+        return '<button class="card' + (w ? ' won' : '') + '" data-i="' + i + '" style="--c:' + g.col + '">' +
+            (w ? '<div class="seal">★</div>' : '') +
+            '<div class="em">' + g.hero + '</div><b>' + esc(short(g)) + '</b><span>' + esc(g.mission) + '</span>' +
+            '<span>📍 ' + esc(g.place) + '</span><div class="stars" title="Difficulty">' + stars(g.stars || g.diff) + '</div></button>';
     }
-    $('cards').addEventListener('click', function (e) {
-        var b = e.target.closest('.card'); if (!b) return;
+    function entryHtml(g, unlocked) {
+        return '<div class="entry' + (unlocked ? '' : ' locked') + '" style="--c:' + g.col + '">' +
+            (unlocked ? '<b>' + esc(g.name) + '</b><small>' + esc(g.epi) + '</small>' : '<b>???</b><small>Complete this mission to unlock.</small>') + '</div>';
+    }
+    function renderMap() {
+        var gd = godsDone(), md = mortalsDone(), gc = countWon(0, GODS_N), mc = countWon(GODS_N, MORT_N);
+        $('count').textContent = gc; $('mcount').textContent = mc;
+        $('cards').innerHTML = GODS.map(function (g, i) { return cardHtml(g, i, false); }).join('');
+
+        $('mortal-lock').innerHTML = md
+            ? '<div class="unlocked">🌟 All ' + MORT_N + ' mortal quests complete! The Myth Codex Final Level is unlocked below.</div>'
+            : gd
+            ? '<div class="unlocked">🔓 Mortal Quests are open: ' + mc + ' of ' + MORT_N + ' completed. Finish them all to unlock the Myth Codex final level.</div>'
+            : '<div class="lockbar">🔒 Mortal Quests unlock when Myth Codex Level 1 is complete: finish all ' + GODS_N + ' god missions (' + gc + '/' + GODS_N + ' so far).</div>';
+        $('mcards').innerHTML = MORTALS.map(function (g, k) { return cardHtml(g, GODS_N + k, !gd); }).join('');
+
+        $('codex-n').textContent = gc;
+        $('codex-l1').textContent = gd ? '✔ complete' : gc + '/' + GODS_N;
+        $('codex-list').innerHTML = GODS.map(function (g, i) { return entryHtml(g, isWon(i)); }).join('');
+
+        $('codex-final-state').textContent = md ? 'unlocked' : 'locked';
+        $('codex-final').innerHTML = md
+            ? '<p class="cx-note">Every myth of the gods and the mortals, together at last.</p>' +
+              '<div class="cx-head">⚡ The Gods</div>' + GODS.map(function (g) { return entryHtml(g, true); }).join('') +
+              '<div class="cx-head">🧑 The Mortals</div>' + MORTALS.map(function (g) { return entryHtml(g, true); }).join('')
+            : '<p class="cx-note">🔒 Complete all ' + MORT_N + ' mortal quests (' + mc + '/' + MORT_N + ' so far) to unlock the final level. It holds every myth of the gods and the mortals.</p>';
+    }
+    function onCard(e) {
+        var b = e.target.closest('.card'); if (!b || b.disabled) return;
         var i = +b.dataset.i;
-        travel('Travelling to ' + GODS[i].place + '...', function () { cur = i; favorEarned = false; renderPrep(); show('s-prep'); });
-    });
+        travel('Travelling to ' + ALL[i].place + '...', function () { cur = i; favorEarned = false; renderPrep(); show('s-prep'); });
+    }
+    $('cards').addEventListener('click', onCard);
+    $('mcards').addEventListener('click', onCard);
 
     /* ---------- "getting ready for the mission" ---------- */
     function renderPrep() {
-        var g = GODS[cur];
+        var g = ALL[cur];
         var opts = shuffle([{ t: g.right, ok: true }, { t: g.wq[0] }, { t: g.wq[1] }]);
         $('s-prep').style.setProperty('--c', g.col);
         $('s-prep').innerHTML =
             '<button class="back" id="p-back">← Back to the map</button>' +
-            '<div class="p-head"><div class="em">' + g.hero + '</div><div><div class="stage">Getting ready for the mission</div><h2>' + esc(g.name) + '</h2>' +
-            '<small>📍 ' + esc(g.place) + ' · Mission: ' + esc(g.mission) + ' · ' + stars(g.diff) + '</small></div></div>' +
+            '<div class="p-head"><div class="em">' + g.hero + '</div><div><div class="stage">' + (g.mortal ? 'Mortal quest: getting ready' : 'Getting ready for the mission') + '</div><h2>' + esc(g.name) + '</h2>' +
+            '<small>📍 ' + esc(g.place) + ' · Mission: ' + esc(g.mission) + ' · ' + stars(g.stars || g.diff) + '</small></div></div>' +
             '<div class="panel"><h3>📜 Read the passage</h3><p>' + esc(g.lore) + '</p><p>' + esc(g.boss) + '</p></div>' +
             '<div class="panel scout"><h3>🔭 Scout\'s report</h3><p>' + esc(g.hint) + '</p></div>' +
             '<div class="panel"><h3>❓ Answer for Divine Favor</h3><p><strong>' + esc(g.q) + '</strong></p>' +
@@ -84,7 +113,7 @@
 
     /* ---------- the mission itself ---------- */
     function startMission() {
-        var g = GODS[cur];
+        var g = ALL[cur];
         battle = newBattle(g, favorEarned); lock = false;
         var sc = $('s-mission'); sc.style.setProperty('--c', g.col);
         sc.innerHTML =
@@ -176,11 +205,15 @@
     }
 
     function endMission() {
-        var b = battle, g = b.g, w = b.over === 'win', i = GODS.indexOf(g);
+        var b = battle, g = b.g, w = b.over === 'win', i = ALL.indexOf(g);
         $(w ? 'foe' : 'hero').classList.add('dead');
+        var gd0 = godsDone(), md0 = mortalsDone();
         if (w && won.indexOf(i) < 0) { won.push(i); save(); }
+        var unlock = '';
+        if (w && !gd0 && godsDone()) unlock = '<div class="unlock-note">🔓 Myth Codex Level 1 complete! The Mortal Quests are now open on the map.</div>';
+        if (w && !md0 && mortalsDone()) unlock = '<div class="unlock-note">📖 Every mortal quest is done! The Myth Codex Final Level is unlocked.</div>';
         $('endbox').innerHTML = '<div class="end ' + (w ? 'win' : 'lose') + '"><div class="card-box">' +
-            (w ? '<h2>🏆 Victory!</h2><p>' + esc(g.win) + '</p><div class="epi">' + esc(g.epi) + '</div>'
+            (w ? '<h2>🏆 Victory!</h2><p>' + esc(g.win) + '</p><div class="epi">' + esc(g.epi) + '</div>' + unlock
                : '<h2>☠ Defeated</h2><p>' + esc(g.enemy.n) + ' was too strong this time. Study its pattern: what counters each kind of attack?</p>') +
             (w ? '' : '<button class="big-btn" id="e-retry">🔄 Retry the mission' + (favorEarned ? ' (Divine Favor restored)' : '') + '</button>') +
             '<button class="big-btn" id="e-map">🗺️ Back to the map</button></div></div>';
@@ -196,5 +229,5 @@
 
     $('enter').onclick = function () { $('intro').classList.add('gone'); };
     renderMap();
-    window.__mythos = { GODS: GODS, get battle() { return battle; }, doAct: doAct, won: function () { return won; } };
+    window.__mythos = { GODS: GODS, ALL: ALL, setWon: function (a) { won = a; renderMap(); }, get battle() { return battle; }, doAct: doAct, won: function () { return won; } };
 })();

@@ -62,6 +62,19 @@ details.codex summary { cursor: pointer; font-weight: bold; color: #c4b5fd; }
 .entry.locked b { color: #9ca3af; }
 .entry small { display: block; font-style: italic; margin-top: 2px; }
 
+.section-title { margin: 24px 0 10px; color: var(--gold); text-transform: uppercase; letter-spacing: 2px; font-size: 1.05rem; }
+.lockbar, .unlocked { margin-bottom: 12px; padding: 12px 14px; border-radius: 10px; line-height: 1.5; font-size: .92rem; }
+.lockbar { background: rgba(148,163,184,.12); border: 1px dashed #94a3b8; color: #cbd5e1; }
+.unlocked { background: rgba(16,185,129,.12); border: 1px solid #10b981; color: #6ee7b7; }
+.card.locked { opacity: .42; filter: grayscale(.8); cursor: not-allowed; }
+.card.locked:hover { transform: none; box-shadow: 0 5px 0 rgba(0,0,0,.45); }
+details.codex + details.codex { margin-top: 10px; }
+details.codex.final { border-color: #fde047; }
+details.codex.final summary { color: #fde68a; }
+.cx-note { margin: 8px 0; opacity: .85; font-size: .92rem; }
+.cx-head { margin: 14px 0 4px; font-weight: bold; letter-spacing: 1px; color: var(--gold); text-transform: uppercase; font-size: .82rem; }
+.unlock-note { margin-top: 12px; padding: 10px; border-radius: 8px; background: rgba(250,204,21,.14); border: 1px solid #facc15; color: #fde68a; font-weight: bold; }
+
 /* ---------- prep ---------- */
 .back { background: none; border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 8px 14px; margin-bottom: 12px; }
 .back:hover { border-color: var(--gold); }
@@ -152,7 +165,7 @@ details.codex summary { cursor: pointer; font-weight: bold; color: #c4b5fd; }
 <div id="intro">
   <div class="card-box">
     <h2>Mythos</h2>
-    <p>Fourteen gods carry fourteen tales, and each ends in a fight. Travel to their lands, study the story, and earn the favor of Olympus. Then march into battle, read your enemy, and win with your own hands.</p>
+    <p>Fourteen gods carry fourteen tales, and each ends in a fight. Travel to their lands, study the story, and earn the favor of Olympus. Then march into battle, read your enemy, and win with your own hands. Finish every god's tale and the mortals' stories open too.</p>
     <p>There are no easy victories here.</p>
     <button class="big-btn" id="enter">Enter Olympus</button>
   </div>
@@ -160,9 +173,15 @@ details.codex summary { cursor: pointer; font-weight: bold; color: #c4b5fd; }
 <div id="travel" class="gone"></div>
 <main id="app">
   <section id="s-map" class="screen show">
-    <div class="m-head"><h1>🏛️ The Pantheon</h1><p>Choose a god's mission. <b class="gold"><span id="count">0</span>/14</b> completed. Higher stars mean harder fights.</p></div>
+    <div class="m-head"><h1>🏛️ The Pantheon</h1><p>Gods <b class="gold"><span id="count">0</span>/14</b> · Mortals <b class="gold"><span id="mcount">0</span>/18</b>. Higher stars mean harder fights.</p></div>
+    <h2 class="section-title">⚡ The Gods</h2>
     <div class="grid" id="cards"></div>
-    <details class="codex"><summary>📖 Myth Codex (<span id="codex-n">0</span>/14 unlocked)</summary><div id="codex-list"></div></details>
+    <h2 class="section-title">🧑 Mortal Quests</h2>
+    <div id="mortal-lock"></div>
+    <div class="grid" id="mcards"></div>
+    <h2 class="section-title">📖 Myth Codex</h2>
+    <details class="codex"><summary>Level 1: The Gods (<span id="codex-l1">0/14</span>) · <span id="codex-n">0</span>/14 myths</summary><div id="codex-list"></div></details>
+    <details class="codex final"><summary>🌟 Final Level: All Myths (<span id="codex-final-state">locked</span>)</summary><div id="codex-final"></div></details>
   </section>
   <section id="s-prep" class="screen"></section>
   <section id="s-mission" class="screen"></section>
@@ -460,7 +479,7 @@ var MISSIONS = [
    strike:'Hammer Blow', guard:'Anvil Guard', dodge:'Spark Dodge',
    sig:{ n:'Forge Strike', i:'🔨', d:'20 dmg, enemy takes 1.5x strikes for 3 turns', fx:[['dmg',20],['vuln',3]] } },
 
- { hero:'🌹', place:"Pygmalion's studio", scenery:'🌹🏛️🌹🏛️🌹', mission:'Awaken the Ivory Statue', diff:3, tune:1.9,
+ { hero:'🌹', place:"Pygmalion's studio", scenery:'🌹🏛️🌹🏛️🌹', mission:'Awaken the Ivory Statue', diff:3, stars:5, tune:1.9,
    hint:'The statue telegraphs a huge slam. Guard it, then punish. Divine Aura heals you and stuns it for a turn.',
    enemy:{ n:'Ivory Golem', e:'🗿', hp:120, passive:'none' },
    moves:[ {n:'Rock Chips',kind:'QUICK',dmg:12,w:2}, {n:'Stone Fist',kind:'HEAVY',dmg:24,w:2}, {n:'Marble Chill',kind:'MAGIC',dmg:16,w:1}, {n:'Raises Both Arms',kind:'CHARGE',w:1,then:{n:'Pillar Slam',kind:'HEAVY',dmg:34}} ],
@@ -482,6 +501,299 @@ var MISSIONS = [
    sig:{ n:'Tortoise Lyre', i:'🎶', d:'12 dmg, stun 1 turn, heal 22', fx:[['dmg',12],['stun',1],['heal',22]] } }
 ];
 
+/* The 18 mortal quests: story/quiz text, then the battle setup for each. Merged by index in engine.js. */
+var MORTAL_TEXT = [
+ { "name": "Arachne: The Weaving Contest", "col": "#c084fc",
+   "epi": "Spiders still spin silk in perfect patterns, and old weavers say every web is Arachne's tapestry, never finished.",
+   "lore": "Arachne of Lydia was so skilled at the loom that people said she must have learned from Athena herself. Proud and stubborn, she denied it and challenged the goddess to a weaving contest. Her tapestry of the gods' failings was flawless, and Athena, furious, tore it to shreds.",
+   "q": "What did Arachne do that angered Athena?", "right": "She boasted that she was a better weaver than the goddess.",
+   "wq": ["She stole Athena's golden loom.", "She refused to weave a cloak for the goddess."],
+   "ok": "✨ CORRECT! Your thread is steady.",
+   "boss": "Athena's torn threads knit themselves into living tapestries that mend their own wounds. Cut them before they wind around you!",
+   "win": "🕸️ VICTORY! You cut the last living thread. Athena sighs and, in pity, turns you into the first spider, free to weave forever!" },
+
+ { "name": "Io: The Gadfly's Curse", "col": "#fb7185",
+   "epi": "The strait where Io swam is still called the Bosporus, the 'ox-crossing'.",
+   "lore": "Io, a priestess of Hera, caught the eye of Zeus. To hide her from his jealous wife, Zeus turned her into a white heifer. Hera was not fooled: she set hundred-eyed Argus to guard her, and when Hermes freed her, Hera sent a maddening gadfly to chase her across the world.",
+   "q": "What did Hera send to torment Io across the world?", "right": "A gadfly that stung her without rest.",
+   "wq": ["A pack of hunting wolves.", "A storm that never ended."],
+   "ok": "✨ CORRECT! You feel the sting and keep moving.",
+   "boss": "The gadfly circles the river shallows, quick and merciless. Stand your ground and break its curse before you reach Egypt!",
+   "win": "🐄 VICTORY! You crush the gadfly's hold, swim the Nile and are restored to human form on the far shore!" },
+
+ { "name": "Leto: The Flight to Delos", "col": "#fbbf24",
+   "epi": "Delos, once adrift, was fixed to the sea floor and became sacred to Apollo and Artemis.",
+   "lore": "Leto carried the twin children of Zeus, and Hera, enraged, forbade every land from giving her a place to give birth. Weary and hunted, Leto wandered the world until she reached Delos, a barren floating island that was not bound by Hera's decree.",
+   "q": "Why could Leto not find a place to give birth?", "right": "Hera forbade every land from sheltering her.",
+   "wq": ["Every land was already full of people.", "She was afraid of the open sea."],
+   "ok": "✨ CORRECT! You know what you are fleeing.",
+   "boss": "Hera's storm hounds close in as you reach the cliffs of Delos. Hold the shore until the twins are born!",
+   "win": "🌟 VICTORY! The storm breaks, and on Delos you bring Artemis and then Apollo into the world. The island is anchored forever!" },
+
+ { "name": "Leda: The Swan's Eggs", "col": "#bae6fd",
+   "epi": "Pollux and Castor became the constellation Gemini, and Helen's beauty launched a thousand ships.",
+   "lore": "Leda, queen of Sparta, was bathing in the river Eurotas when a swan took refuge in her arms, fleeing an eagle. The swan was Zeus in disguise. From this meeting Leda laid eggs that hatched into Helen, Clytemnestra, Castor and Pollux.",
+   "q": "Which form did Zeus take when he came to Leda?", "right": "A swan.",
+   "wq": ["A white bull.", "A shower of gold."],
+   "ok": "✨ CORRECT! You know the shape behind the feathers.",
+   "boss": "Hera's jealous eagles dive toward the eggs hidden in the reeds. Guard the nest with everything you have!",
+   "win": "🥚 VICTORY! The eagles flee, and your eggs hatch safely into the children who will change the world!" },
+
+ { "name": "Theseus: The Labyrinth", "col": "#fdba74",
+   "epi": "Athens never paid the Minotaur's tribute again, and Theseus went on to become its king.",
+   "lore": "Every nine years Athens sent youths to Crete to be fed to the Minotaur, the bull-headed monster in King Minos's Labyrinth. Prince Theseus volunteered to go. Ariadne, Minos's daughter, gave him a ball of thread to unwind behind him so he could find his way back out.",
+   "q": "How did Theseus find his way out of the Labyrinth?", "right": "By following a thread given to him by Ariadne.",
+   "wq": ["By following the stars overhead.", "By marking the walls with chalk."],
+   "ok": "✨ CORRECT! You will not lose the thread.",
+   "boss": "In the black heart of the maze the Minotaur bellows and paws the ground. Fight, but do not lose your way!",
+   "win": "🧵 VICTORY! The Minotaur falls and you follow the thread back into daylight with the Athenian youths!" },
+
+ { "name": "Danae: Adrift in the Chest", "col": "#fde68a",
+   "epi": "Dictys raised Perseus as his own, and Danae's son grew up to become one of the greatest heroes of Greece.",
+   "lore": "King Acrisius of Argos was warned by an oracle that his grandson would kill him. To keep his daughter Danae childless he locked her in a bronze chamber. But Zeus came to her as a shower of gold, and she bore a son, Perseus. Furious, Acrisius sealed mother and child in a wooden chest and cast it into the sea.",
+   "q": "How did Zeus reach Danae in her locked chamber?", "right": "As a shower of golden rain.",
+   "wq": ["As a bolt of lightning.", "Disguised as a mortal guard."],
+   "ok": "✨ CORRECT! Gold finds its way in.",
+   "boss": "A great storm batters the chest, and every wave could be your last. Keep your child safe and ride it out!",
+   "win": "🌊 VICTORY! The storm passes, and the chest washes up on the island of Seriphos, where the fisherman Dictys welcomes you both." },
+
+ { "name": "Perseus: The Sea Monster", "col": "#67e8f9",
+   "epi": "Perseus, Andromeda and her mother Cassiopeia were all placed among the stars by the gods.",
+   "lore": "After slaying Medusa, Perseus flew home on winged sandals and saw the princess Andromeda chained to a rock as an offering to Cetus, a sea monster sent by Poseidon. Her mother Cassiopeia had boasted that her daughter was lovelier than the sea nymphs.",
+   "q": "Who was chained to the rock as an offering to the sea monster?", "right": "Princess Andromeda.",
+   "wq": ["The nymph Thetis.", "Queen Cassiopeia herself."],
+   "ok": "✨ CORRECT! You know who needs saving.",
+   "boss": "Cetus rises from the surf, scales gleaming like armor. Use everything you took from Medusa, and do not look away!",
+   "win": "🪨 VICTORY! The monster turns to stone and sinks beneath the waves. Andromeda is free, and she is yours to wed!" },
+
+ { "name": "Orion: The Scorpion", "col": "#93c5fd",
+   "epi": "Orion's Belt is still the most famous sight of the winter sky.",
+   "lore": "Orion, the giant hunter, was said to be the finest hunter in the world. He boasted of it too. Gaia, the Earth herself, grew angry at his bragging about killing every beast, and sent a giant scorpion to humble him.",
+   "q": "What did Gaia send to stop Orion's boasting?", "right": "A giant scorpion.",
+   "wq": ["A mountain lion.", "A swarm of hornets."],
+   "ok": "✨ CORRECT! You know your enemy.",
+   "boss": "The scorpion's shell is almost unbreakable. Find the gap in its armor before its tail strikes!",
+   "win": "⭐ VICTORY! You crack the shell and the scorpion falls. The gods honor your courage by setting you among the stars!" },
+
+ { "name": "Daedalus: Wings of Wax", "col": "#d6d3d1",
+   "epi": "Icarus gave his name to the Icarian Sea, and Daedalus became the model for every inventor who followed.",
+   "lore": "Daedalus, the greatest inventor in Greece, built the Labyrinth for King Minos. But when Minos imprisoned him and his son Icarus in a tower, Daedalus built wings of feathers and wax so they could fly home. He warned Icarus not to fly too high, or the sun would melt the wax.",
+   "q": "What did Daedalus use to hold the feathers of the wings together?", "right": "Wax.",
+   "wq": ["Pine tar.", "Strips of leather."],
+   "ok": "✨ CORRECT! A good craftsman remembers every detail.",
+   "boss": "Talos, the bronze giant of Crete, patrols the shore and hurls boulders at escaping ships. Outwit the metal guardian before he cooks you alive!",
+   "win": "🪶 VICTORY! You pull the nail from Talos's single vein, and the bronze giant falls still. You sail free, holding on to your son's warning." },
+
+ { "name": "Sisyphus: Cheating Death", "col": "#9ca3af",
+   "epi": "To this day, a never-ending, pointless task is called Sisyphean.",
+   "lore": "Sisyphus, the cunning king of Corinth, tricked the gods more than once. When Zeus sent Thanatos, Death himself, to take him, Sisyphus asked to try on the chains to see how they worked, and then locked Death inside them. For a while, no one on earth could die.",
+   "q": "How did Sisyphus trap Death?", "right": "He tricked Thanatos into trying on the chains.",
+   "wq": ["He hid inside a sacred temple.", "He bribed the ferryman Charon."],
+   "ok": "✨ CORRECT! A trickster remembers his tricks.",
+   "boss": "Thanatos breaks free and storms back, and this time he means to drag you down for good. Outwit Death once more!",
+   "win": "⛓️ VICTORY! You bind Death again, but Zeus's wrath is waiting: your punishment will be to roll a boulder uphill forever." },
+
+ { "name": "Actaeon: The Stag", "col": "#86efac",
+   "epi": "Hunters of Boeotia say a wild stag with strangely sad eyes still lives on Mount Cithaeron.",
+   "lore": "Actaeon, a young hunter, was out hunting with his hounds when he stumbled upon Artemis bathing in a spring. Furious that a mortal had seen her, the goddess splashed him with water and turned him into a stag. His own hounds no longer knew their master.",
+   "q": "What did Artemis turn Actaeon into?", "right": "A stag.",
+   "wq": ["A wolf.", "A bear."],
+   "ok": "✨ CORRECT! You know what you have become.",
+   "boss": "Your own hounds are baying through the woods behind you. Dodge their fangs and survive until you reach the ridge!",
+   "win": "🦌 VICTORY! You outrun the pack to the top of the ridge, and the hounds finally lose your trail and slink home." },
+
+ { "name": "Narcissus: The Pool", "col": "#f0abfc",
+   "epi": "The narcissus flower still blooms beside streams, bowing its head toward the water.",
+   "lore": "Narcissus was a beautiful hunter who scorned everyone who loved him, including the nymph Echo. Nemesis, the goddess of retribution, led him to a still pool. He saw his own reflection and fell in love with it, unable to look away.",
+   "q": "What did Narcissus fall in love with?", "right": "His own reflection in a pool.",
+   "wq": ["A statue of Aphrodite.", "The nymph Echo."],
+   "ok": "✨ CORRECT! You see through the reflection.",
+   "boss": "The pool ripples, and your reflection rises from the water, mirroring your every move. Break the spell before it claims you!",
+   "win": "🌼 VICTORY! You shatter the reflection and walk away from the water, and a golden flower blooms where you stood." },
+
+ { "name": "Daphne: The Laurel", "col": "#4ade80",
+   "epi": "Apollo made the laurel sacred, and winners in the Greek games were crowned with its leaves.",
+   "lore": "Apollo had mocked Eros for his small bow, so Eros struck Apollo with a golden arrow of love and the nymph Daphne with a leaden arrow of hatred. Apollo chased the fleeing Daphne through the forest. At the river's edge she begged her father, the river god, to save her.",
+   "q": "What did Daphne become to escape Apollo?", "right": "A laurel tree.",
+   "wq": ["A river spirit.", "A white swan."],
+   "ok": "✨ CORRECT! Your roots run deep.",
+   "boss": "Apollo's blazing pursuit gains on you through the forest. Find a way to stop him before you reach the river!",
+   "win": "🌿 VICTORY! Roots take hold, bark rises, and Apollo is left holding laurel leaves. He weaves them into a crown." },
+
+ { "name": "Eurydice: Out of the Underworld", "col": "#c4b5fd",
+   "epi": "In the old tale Orpheus looked back at the very last step, and the song he made of his loss is still sung.",
+   "lore": "Eurydice, wife of the musician Orpheus, was bitten by a snake and died. Orpheus went down to the Underworld and charmed Hades with his lyre. Hades agreed to release her on one condition: Orpheus must not look back until they reached the world of light.",
+   "q": "What was Orpheus told not to do on the way out?", "right": "Look back at Eurydice.",
+   "wq": ["Speak to her.", "Stop playing his lyre."],
+   "ok": "✨ CORRECT! You know the one rule.",
+   "boss": "The shades of the dead crowd the path and pull at your cloak. Keep climbing toward the light!",
+   "win": "🌅 VICTORY! You fight clear of the shades and reach the edge of the light, carried by the sound of Orpheus's lyre." },
+
+ { "name": "Herakles: The Nemean Lion", "col": "#fb923c",
+   "epi": "The lion's image was set among the stars as the constellation Leo, and Herakles wore its hide through all of his labors.",
+   "lore": "Eurystheus's first task for Herakles was to bring back the skin of the Nemean Lion, a monster whose golden hide could not be pierced by any weapon. Arrows bounced off it and swords bent against it, and the villagers of Nemea lived in fear.",
+   "q": "What made the Nemean Lion so hard to kill?", "right": "Its hide could not be pierced by weapons.",
+   "wq": ["It could only be seen at night.", "It could breathe fire."],
+   "ok": "✨ CORRECT! Bare hands, then.",
+   "boss": "The lion's hide laughs at your weapons. Only your bare hands can finish it, so get in close and grapple!",
+   "win": "🦁 VICTORY! You wrestle the lion down and use its own claws to skin it. You will wear its hide as armor from now on!" },
+
+ { "name": "Clytemnestra: The Queen's Vengeance", "col": "#ef4444",
+   "epi": "The cycle of vengeance in the House of Atreus lasted for generations, and the Greek tragedians never tired of telling it.",
+   "lore": "Clytemnestra's husband, King Agamemnon, sacrificed their daughter Iphigenia to win favorable winds for the Trojan War. For ten years the queen ruled Mycenae and nursed her grief. When Agamemnon returned from Troy in triumph, she was waiting for him.",
+   "q": "Why did Clytemnestra hate Agamemnon?", "right": "He sacrificed their daughter Iphigenia.",
+   "wq": ["He took a second wife.", "He had exiled her from Mycenae."],
+   "ok": "✨ CORRECT! A mother's reason.",
+   "boss": "The king's honor guard fills the palace halls with shields and spears. Fight through them to reach the throne room!",
+   "win": "👑 VICTORY! You cut through the guards and take the palace. But the Furies will remember what was done here..." },
+
+ { "name": "Helen: The Wooden Horse", "col": "#f9a8d4",
+   "epi": "After the war, Helen returned to Sparta with Menelaus, and the two lived on in peace, as Homer tells.",
+   "lore": "When the Greeks left a giant wooden horse outside the walls of Troy, the Trojans dragged it inside. Helen, wife of Menelaus and now living in Troy, walked around it and called out, imitating the voices of the hidden soldiers' wives. Some of the men inside almost answered.",
+   "q": "What did the Greeks hide inside the wooden horse?", "right": "Greek soldiers.",
+   "wq": ["A hidden treasure.", "A nest of snakes."],
+   "ok": "✨ CORRECT! You were not fooled.",
+   "boss": "The hidden warriors burst from the horse's belly in the dark of night. Help hold the courtyard until the gates open!",
+   "win": "🐴 VICTORY! The horse's soldiers are driven back, and Troy's great story reaches its end with you finally free to go home." },
+
+ { "name": "Tithonus: Race the Dawn", "col": "#fcd34d",
+   "epi": "Cicadas still sing at dawn and dusk, and the old poets say it is Tithonus, greeting Eos.",
+   "lore": "Eos, the goddess of the dawn, fell in love with Tithonus, a Trojan prince, and asked Zeus to make him immortal. Zeus granted her wish, but she forgot to ask that he stay young. As the years passed, Tithonus grew older and weaker, but never died.",
+   "q": "What did Eos forget to ask Zeus when she made Tithonus immortal?", "right": "That he stay young forever.",
+   "wq": ["That he stay awake forever.", "That he keep his memory."],
+   "ok": "✨ CORRECT! Immortality without youth is a curse.",
+   "boss": "Age itself, a gnawing shadow, chases you with every dawn. Run ahead of the light and keep your strength!",
+   "win": "🦗 VICTORY! You hold the shadow back until Eos, pitying you, turns you into a cicada that greets every dawn with song." }
+];
+
+var MORTAL_MISSIONS = [
+ { "hero": "🧵", "place": "a Lydian weaving hall", "scenery": "🧵🕸️🧵🕸️🧵", "mission": "Cut the Living Tapestry", "diff": 2, "tune": 1.2,
+   "hint": "The tapestry mends itself every other turn. Silken Snare stuns it, stops the mending and exposes it to your strikes.",
+   "enemy": { "n": "Athena's Living Tapestry", "e": "🕸️", "hp": 115, "passive": "heal" },
+   "moves": [ {"n":"Thread Lash","kind":"QUICK","dmg":13,"w":2}, {"n":"Shuttle Slam","kind":"HEAVY","dmg":24,"w":2}, {"n":"Enchanted Pattern","kind":"MAGIC","dmg":16,"w":1} ],
+   "strike": "Shuttle Strike", "guard": "Thread Shield", "dodge": "Weave Aside",
+   "sig": { "n": "Silken Snare", "i": "🕸️", "d": "14 dmg, stuns 1 turn, enemy takes 1.5x strikes for 2 turns", "fx": [["dmg",14],["stun",1],["vuln",2]] } },
+
+ { "hero": "🐄", "place": "the banks of the Nile", "scenery": "🌾🌊🌾🌊🌾", "mission": "Cross the Nile", "diff": 3, "tune": 1.5,
+   "hint": "The gadfly grows frantic as it weakens. Stampede hits hard and wards off the next sting.",
+   "enemy": { "n": "Hera's Gadfly", "e": "🪰", "hp": 110, "passive": "enrage" },
+   "moves": [ {"n":"Stinging Dive","kind":"QUICK","dmg":15,"w":3}, {"n":"Venom Frenzy","kind":"MAGIC","dmg":17,"w":2}, {"n":"Swarm Charge","kind":"HEAVY","dmg":24,"w":1} ],
+   "strike": "Horn Jab", "guard": "Lower Your Head", "dodge": "Splash Aside",
+   "sig": { "n": "Stampede", "i": "🐂", "d": "30 dmg, and a ward blocks the next attack", "fx": [["dmg",30],["ward",1]] } },
+
+ { "hero": "🌟", "place": "the shores of Delos", "scenery": "🌊🏝️🌊🏝️🌊", "mission": "Hold the Shore", "diff": 3, "tune": 1.5,
+   "hint": "The hounds howl with storm magic: guarding fails and dodging halves it. Cradle of Light heals you and blocks one attack.",
+   "enemy": { "n": "Hera's Storm Hounds", "e": "🐺", "hp": 125, "passive": "none" },
+   "moves": [ {"n":"Snap and Lunge","kind":"QUICK","dmg":15,"w":2}, {"n":"Hurricane Howl","kind":"MAGIC","dmg":20,"w":2}, {"n":"Pounce","kind":"HEAVY","dmg":25,"w":2} ],
+   "strike": "Staff Strike", "guard": "Hold the Line", "dodge": "Dart Through Surf",
+   "sig": { "n": "Cradle of Light", "i": "🌅", "d": "Heal 30 and ward blocks 1 attack", "fx": [["heal",30],["ward",1]] } },
+
+ { "hero": "🦢", "place": "the reeds of the river Eurotas", "scenery": "🌾🦢🌾🥚🌾", "mission": "Guard the Nest", "diff": 2, "tune": 2.3,
+   "hint": "The eagles dive in hard but fast. Dodge the quick talons and guard the dive. Swan Song heals you and stuns them.",
+   "enemy": { "n": "Jealous Eagles", "e": "🦅", "hp": 110, "passive": "none" },
+   "moves": [ {"n":"Talon Rake","kind":"QUICK","dmg":13,"w":3}, {"n":"Dive-Bomb","kind":"HEAVY","dmg":23,"w":2}, {"n":"Piercing Screech","kind":"MAGIC","dmg":14,"w":1} ],
+   "strike": "Wing Buffet", "guard": "Spread Wings", "dodge": "Duck Into Reeds",
+   "sig": { "n": "Swan Song", "i": "🎵", "d": "Heal 25 and stun 1 turn", "fx": [["heal",25],["stun",1]] } },
+
+ { "hero": "🗡️", "place": "the Labyrinth of Crete", "scenery": "🧱🧵🧱🧵🧱", "mission": "Slay the Minotaur", "diff": 4, "tune": 0.85,
+   "hint": "In the Labyrinth's dark, 4 in 10 strikes miss. Ariadne's Thread lights your way for five turns. When he paws the ground, strike!",
+   "enemy": { "n": "The Minotaur", "e": "🐂", "hp": 130, "passive": "dark" },
+   "moves": [ {"n":"Gore Charge","kind":"HEAVY","dmg":27,"w":2}, {"n":"Horn Sweep","kind":"QUICK","dmg":16,"w":2}, {"n":"Bellow","kind":"MAGIC","dmg":18,"w":1}, {"n":"Paws the Ground","kind":"CHARGE","w":1,"then":{"n":"Stampede","kind":"HEAVY","dmg":36}} ],
+   "strike": "Sword Thrust", "guard": "Shield Block", "dodge": "Maze Roll",
+   "sig": { "n": "Ariadne's Thread", "i": "🧵", "d": "16 dmg and lights the maze for 5 turns", "fx": [["dmg",16],["lit",5]] } },
+
+ { "hero": "👸", "place": "the open sea off Argos", "scenery": "🌊📦🌊📦🌊", "mission": "Ride Out the Storm", "diff": 3, "tune": 0.9,
+   "hint": "The storm batters you with lightning and waves, and rages harder as it weakens. Golden Rain weakens its blows for three turns.",
+   "enemy": { "n": "The Raging Storm", "e": "⛈️", "hp": 125, "passive": "enrage" },
+   "moves": [ {"n":"Lightning Lash","kind":"QUICK","dmg":15,"w":2}, {"n":"Towering Wave","kind":"HEAVY","dmg":26,"w":2}, {"n":"Howling Gale","kind":"MAGIC","dmg":19,"w":2} ],
+   "strike": "Oar Swing", "guard": "Brace the Chest", "dodge": "Ride the Wave",
+   "sig": { "n": "Golden Rain", "i": "✨", "d": "20 dmg, the storm deals 0.6x for 3 turns", "fx": [["dmg",20],["weak",0.6,3]] } },
+
+ { "hero": "🛡️", "place": "the cliffs of Joppa", "scenery": "🪨🌊🪨🌊🪨", "mission": "Slay the Sea Monster", "diff": 4, "tune": 1.2,
+   "hint": "Cetus's scales halve your strikes. Medusa's Head ignores them and turns the monster to stone for two turns.",
+   "enemy": { "n": "Cetus the Sea Monster", "e": "🦑", "hp": 135, "passive": "armor" },
+   "moves": [ {"n":"Tentacle Whip","kind":"QUICK","dmg":16,"w":2}, {"n":"Tidal Crush","kind":"HEAVY","dmg":28,"w":2}, {"n":"Sea-Roar","kind":"MAGIC","dmg":18,"w":1} ],
+   "strike": "Harpe Slash", "guard": "Mirror Shield", "dodge": "Winged Sandals",
+   "sig": { "n": "Medusa's Head", "i": "🐍", "d": "28 dmg (ignores armor), stuns 2 turns", "fx": [["dmg",28],["stun",2]] } },
+
+ { "hero": "🏹", "place": "the plains of Crete", "scenery": "🌾🦂🌾🦂🌾", "mission": "Crack the Scorpion's Shell", "diff": 3, "tune": 1.1,
+   "hint": "The shell halves your strikes. Hunter's Snare stuns the scorpion and exposes it so your strikes deal 1.5x for three turns.",
+   "enemy": { "n": "Gaia's Giant Scorpion", "e": "🦂", "hp": 125, "passive": "armor" },
+   "moves": [ {"n":"Claw Snap","kind":"QUICK","dmg":15,"w":2}, {"n":"Tail Strike","kind":"HEAVY","dmg":26,"w":2}, {"n":"Venom Spray","kind":"MAGIC","dmg":17,"w":1} ],
+   "strike": "Club Blow", "guard": "Hunter's Shield", "dodge": "Leap Aside",
+   "sig": { "n": "Hunter's Snare", "i": "🪤", "d": "14 dmg, stuns 1 turn, enemy takes 1.5x strikes for 3 turns", "fx": [["dmg",14],["stun",1],["vuln",3]] } },
+
+ { "hero": "🔧", "place": "the walls of Crete", "scenery": "🏛️🔧🏛️🔧🏛️", "mission": "Outwit Talos", "diff": 4, "tune": 0.75,
+   "hint": "Talos's bronze halves your strikes. Pull the Bronze Nail to crack him open, and guard when he glows white-hot.",
+   "enemy": { "n": "Talos, the Bronze Guardian", "e": "🤖", "hp": 140, "passive": "armor" },
+   "moves": [ {"n":"Boulder Hurl","kind":"HEAVY","dmg":27,"w":2}, {"n":"Bronze Fist","kind":"QUICK","dmg":15,"w":2}, {"n":"Molten Ichor","kind":"MAGIC","dmg":18,"w":1}, {"n":"Glows White-Hot","kind":"CHARGE","w":1,"then":{"n":"Scalding Embrace","kind":"HEAVY","dmg":35}} ],
+   "strike": "Mallet Strike", "guard": "Plank Shield", "dodge": "Duck Behind Gears",
+   "sig": { "n": "Pull the Bronze Nail", "i": "🔩", "d": "22 dmg, enemy takes 1.5x strikes for 3 turns", "fx": [["dmg",22],["vuln",3]] } },
+
+ { "hero": "🪨", "place": "the halls of Corinth", "scenery": "🏛️⛓️🏛️⛓️🏛️", "mission": "Chain Death Again", "diff": 4, "tune": 0.8,
+   "hint": "Death rages as he weakens. Death's Own Chains stops him for a turn and halves his damage for three.",
+   "enemy": { "n": "Thanatos, Death Himself", "e": "💀", "hp": 135, "passive": "enrage" },
+   "moves": [ {"n":"Scythe Sweep","kind":"QUICK","dmg":16,"w":2}, {"n":"Soul Grasp","kind":"MAGIC","dmg":21,"w":3}, {"n":"Crushing Doom","kind":"HEAVY","dmg":27,"w":2} ],
+   "strike": "Boulder Bash", "guard": "Boulder Wall", "dodge": "Trickster's Step",
+   "sig": { "n": "Death's Own Chains", "i": "⛓️", "d": "10 dmg, stuns 1 turn, he deals 0.5x for 3 turns", "fx": [["dmg",10],["stun",1],["weak",0.5,3]] } },
+
+ { "hero": "🦌", "place": "Mount Cithaeron", "scenery": "🌲🦌🌲🌲🌲", "mission": "Outrun Your Hounds", "diff": 3, "tune": 1.9,
+   "hint": "The hounds are fast and grow wild as they tire. Dodge the quick bites and use Mighty Charge to stun the pack.",
+   "enemy": { "n": "The Hunting Hounds", "e": "🐕", "hp": 120, "passive": "enrage" },
+   "moves": [ {"n":"Snapping Bite","kind":"QUICK","dmg":16,"w":3}, {"n":"Pack Rush","kind":"HEAVY","dmg":24,"w":2}, {"n":"Baying Howl","kind":"MAGIC","dmg":14,"w":1} ],
+   "strike": "Antler Gore", "guard": "Antler Shield", "dodge": "Stag Leap",
+   "sig": { "n": "Mighty Charge", "i": "🦌", "d": "32 dmg and stuns 1 turn", "fx": [["dmg",32],["stun",1]] } },
+
+ { "hero": "🌼", "place": "the still pool", "scenery": "💧🌼💧🌼💧", "mission": "Break the Reflection", "diff": 4, "tune": 1.1,
+   "hint": "The reflection's gaze is magic: dodging halves it and guarding does nothing. Shatter the Pool stuns it and exposes it.",
+   "enemy": { "n": "Your Mirror Self", "e": "🪞", "hp": 130, "passive": "none" },
+   "moves": [ {"n":"Mirror Strike","kind":"QUICK","dmg":17,"w":2}, {"n":"Reflected Blow","kind":"HEAVY","dmg":26,"w":2}, {"n":"Hypnotic Gaze","kind":"MAGIC","dmg":22,"w":2} ],
+   "strike": "Hunter's Dart", "guard": "Look Away", "dodge": "Step Back",
+   "sig": { "n": "Shatter the Pool", "i": "💧", "d": "24 dmg, stuns 1 turn, enemy takes 1.5x strikes for 2 turns", "fx": [["dmg",24],["stun",1],["vuln",2]] } },
+
+ { "hero": "🌿", "place": "the river Peneus", "scenery": "🌿🌳🌿🌳🌿", "mission": "Flee Apollo", "diff": 5, "tune": 1.0,
+   "hint": "He is fast and hits harder as he weakens. Bark and Thorn wards off one attack and punishes every hit that lands.",
+   "enemy": { "n": "Apollo, the Blazing Pursuer", "e": "🌞", "hp": 135, "passive": "enrage" },
+   "moves": [ {"n":"Golden Arrow","kind":"QUICK","dmg":16,"w":3}, {"n":"Sunlance","kind":"HEAVY","dmg":27,"w":2}, {"n":"Honeyed Words","kind":"MAGIC","dmg":19,"w":2} ],
+   "strike": "Branch Whip", "guard": "Bark Shield", "dodge": "Nymph's Dash",
+   "sig": { "n": "Bark and Thorn", "i": "🌳", "d": "Ward blocks 1 attack, thorns hurt him 12 per hit for 4 turns", "fx": [["thorns",4],["ward",1]] } },
+
+ { "hero": "🥀", "place": "the paths of the Underworld", "scenery": "👻🌑👻🌑👻", "mission": "Climb to the Light", "diff": 4, "tune": 0.7,
+   "hint": "The shades feed on despair and mend every other turn. Orpheus's Lyre stuns them for a turn, which stops the mending, and heals you.",
+   "enemy": { "n": "Shades of the Dead", "e": "👻", "hp": 135, "passive": "heal" },
+   "moves": [ {"n":"Cold Grasp","kind":"QUICK","dmg":15,"w":2}, {"n":"Wail of the Dead","kind":"MAGIC","dmg":21,"w":3}, {"n":"Crushing Despair","kind":"HEAVY","dmg":25,"w":2} ],
+   "strike": "Torch Swing", "guard": "Cloak Wrap", "dodge": "Slip Past",
+   "sig": { "n": "Orpheus's Lyre", "i": "🎶", "d": "Stuns 1 turn and heals 18", "fx": [["stun",1],["heal",18]] } },
+
+ { "hero": "💪", "place": "the hills of Nemea", "scenery": "⛰️🌾⛰️🌾⛰️", "mission": "Wrestle the Nemean Lion", "diff": 3, "tune": 1.6,
+   "hint": "Weapons barely scratch the hide, so your strikes deal half. Wrestling Hold ignores the hide. Strike when it crouches to spring.",
+   "enemy": { "n": "The Nemean Lion", "e": "🦁", "hp": 125, "passive": "armor" },
+   "moves": [ {"n":"Claw Rake","kind":"QUICK","dmg":16,"w":2}, {"n":"Pounce","kind":"HEAVY","dmg":25,"w":2}, {"n":"Thunderous Roar","kind":"MAGIC","dmg":16,"w":1}, {"n":"Crouches to Spring","kind":"CHARGE","w":1,"then":{"n":"Killing Leap","kind":"HEAVY","dmg":34}} ],
+   "strike": "Club Blow", "guard": "Arm Block", "dodge": "Roll Aside",
+   "sig": { "n": "Wrestling Hold", "i": "🤼", "d": "26 dmg (ignores the hide), stuns 1 turn", "fx": [["dmg",26],["stun",1]] } },
+
+ { "hero": "👑", "place": "the palace of Mycenae", "scenery": "🏛️🔥🏛️🔥🏛️", "mission": "Storm the Palace", "diff": 5, "tune": 0.6,
+   "hint": "Their shields halve your strikes, so counter-attacks and your special matter more. Queen's Decree weakens their blows for three turns.",
+   "enemy": { "n": "Agamemnon's Honor Guard", "e": "🛡️", "hp": 140, "passive": "armor" },
+   "moves": [ {"n":"Spear Thrust","kind":"QUICK","dmg":16,"w":2}, {"n":"Shield Charge","kind":"HEAVY","dmg":28,"w":2}, {"n":"Battle Cry","kind":"MAGIC","dmg":18,"w":1} ],
+   "strike": "Palace Dagger", "guard": "Cloak and Shield", "dodge": "Slip Through the Hall",
+   "sig": { "n": "Queen's Decree", "i": "📜", "d": "18 dmg, guards deal 0.5x for 3 turns", "fx": [["dmg",18],["weak",0.5,3]] } },
+
+ { "hero": "💃", "place": "the walls of Troy", "scenery": "🏛️🐴🏛️🐴🏛️", "mission": "Test the Wooden Horse", "diff": 4, "tune": 1.0,
+   "hint": "The soldiers hit fast and hard. Voice of Home stuns them for two turns and weakens their blows afterward.",
+   "enemy": { "n": "Soldiers of the Horse", "e": "🐴", "hp": 130, "passive": "none" },
+   "moves": [ {"n":"Surprise Strike","kind":"QUICK","dmg":17,"w":2}, {"n":"Phalanx Charge","kind":"HEAVY","dmg":26,"w":2}, {"n":"Battle Cry","kind":"MAGIC","dmg":16,"w":1} ],
+   "strike": "Distaff Strike", "guard": "Veil of Silk", "dodge": "Dance Away",
+   "sig": { "n": "Voice of Home", "i": "🗣️", "d": "Stuns 2 turns, they deal 0.7x for 3 turns", "fx": [["stun",2],["weak",0.7,3]] } },
+
+ { "hero": "🧓", "place": "the palace of the dawn", "scenery": "🌄⏳🌄⏳🌄", "mission": "Outrun the Shadow of Age", "diff": 5, "tune": 0.85,
+   "hint": "The shadow grows hungrier as it weakens. Dawn's Light heals you and weakens it for four turns.",
+   "enemy": { "n": "The Withering Shadow of Age", "e": "⌛", "hp": 140, "passive": "enrage" },
+   "moves": [ {"n":"Creeping Chill","kind":"QUICK","dmg":16,"w":2}, {"n":"Weight of Years","kind":"HEAVY","dmg":28,"w":2}, {"n":"Fading Whisper","kind":"MAGIC","dmg":20,"w":3} ],
+   "strike": "Walking-Stick Rap", "guard": "Gather Your Strength", "dodge": "Shuffle Aside",
+   "sig": { "n": "Dawn's Light", "i": "🌄", "d": "Heal 22, the shadow deals 0.55x for 4 turns", "fx": [["heal",22],["weak",0.55,4]] } }
+];
+
 /* Turn-based battle engine: no DOM, so it can be simulated in Node. */
 var KIND = {
     QUICK:  { i: '⚡', l: 'Quick Strike', tip: 'DODGE avoids it completely. GUARD halves it.' },
@@ -491,6 +803,9 @@ var KIND = {
 };
 
 var GODS = MISSIONS.map(function (m, i) { return Object.assign({}, GODS_TEXT[i], m); });
+var MORTALS = MORTAL_MISSIONS.map(function (m, i) { return Object.assign({}, MORTAL_TEXT[i], m, { mortal: true }); });
+/* Everything playable: gods first (indices 0-13), then mortals (14-31). Saved progress uses these indices. */
+var ALL = GODS.concat(MORTALS);
 
 function rint(r, a, b) { return a + Math.floor(r() * (b - a + 1)); }
 
@@ -687,37 +1002,66 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
     }
 
     /* ---------- map ---------- */
-    function renderMap() {
-        $('cards').innerHTML = GODS.map(function (g, i) {
-            var w = won.indexOf(i) >= 0;
-            return '<button class="card' + (w ? ' won' : '') + '" data-i="' + i + '" style="--c:' + g.col + '">' +
-                (w ? '<div class="seal">★</div>' : '') +
-                '<div class="em">' + g.hero + '</div><b>' + esc(short(g)) + '</b><span>' + esc(g.mission) + '</span>' +
-                '<span>📍 ' + esc(g.place) + '</span><div class="stars" title="Difficulty">' + stars(g.diff) + '</div></button>';
-        }).join('');
-        $('count').textContent = won.length;
-        $('codex-n').textContent = won.length;
-        $('codex-list').innerHTML = GODS.map(function (g, i) {
-            var w = won.indexOf(i) >= 0;
-            return '<div class="entry' + (w ? '' : ' locked') + '" style="--c:' + g.col + '">' +
-                (w ? '<b>' + esc(g.name) + '</b><small>' + esc(g.epi) + '</small>' : '<b>???</b><small>Complete this mission to unlock.</small>') + '</div>';
-        }).join('');
+    var GODS_N = GODS.length, MORT_N = MORTALS.length;
+    function isWon(i) { return won.indexOf(i) >= 0; }
+    function countWon(from, n) { var c = 0; for (var i = from; i < from + n; i++) if (isWon(i)) c++; return c; }
+    function godsDone() { return countWon(0, GODS_N) === GODS_N; }          /* Myth Codex Level 1 complete */
+    function mortalsDone() { return countWon(GODS_N, MORT_N) === MORT_N; }  /* Myth Codex Final Level unlocked */
+
+    function cardHtml(g, i, locked) {
+        var w = isWon(i);
+        if (locked) {
+            return '<button class="card locked" disabled style="--c:' + g.col + '"><div class="em">🔒</div><b>' + esc(short(g)) + '</b><span>Locked</span></button>';
+        }
+        return '<button class="card' + (w ? ' won' : '') + '" data-i="' + i + '" style="--c:' + g.col + '">' +
+            (w ? '<div class="seal">★</div>' : '') +
+            '<div class="em">' + g.hero + '</div><b>' + esc(short(g)) + '</b><span>' + esc(g.mission) + '</span>' +
+            '<span>📍 ' + esc(g.place) + '</span><div class="stars" title="Difficulty">' + stars(g.stars || g.diff) + '</div></button>';
     }
-    $('cards').addEventListener('click', function (e) {
-        var b = e.target.closest('.card'); if (!b) return;
+    function entryHtml(g, unlocked) {
+        return '<div class="entry' + (unlocked ? '' : ' locked') + '" style="--c:' + g.col + '">' +
+            (unlocked ? '<b>' + esc(g.name) + '</b><small>' + esc(g.epi) + '</small>' : '<b>???</b><small>Complete this mission to unlock.</small>') + '</div>';
+    }
+    function renderMap() {
+        var gd = godsDone(), md = mortalsDone(), gc = countWon(0, GODS_N), mc = countWon(GODS_N, MORT_N);
+        $('count').textContent = gc; $('mcount').textContent = mc;
+        $('cards').innerHTML = GODS.map(function (g, i) { return cardHtml(g, i, false); }).join('');
+
+        $('mortal-lock').innerHTML = md
+            ? '<div class="unlocked">🌟 All ' + MORT_N + ' mortal quests complete! The Myth Codex Final Level is unlocked below.</div>'
+            : gd
+            ? '<div class="unlocked">🔓 Mortal Quests are open: ' + mc + ' of ' + MORT_N + ' completed. Finish them all to unlock the Myth Codex final level.</div>'
+            : '<div class="lockbar">🔒 Mortal Quests unlock when Myth Codex Level 1 is complete: finish all ' + GODS_N + ' god missions (' + gc + '/' + GODS_N + ' so far).</div>';
+        $('mcards').innerHTML = MORTALS.map(function (g, k) { return cardHtml(g, GODS_N + k, !gd); }).join('');
+
+        $('codex-n').textContent = gc;
+        $('codex-l1').textContent = gd ? '✔ complete' : gc + '/' + GODS_N;
+        $('codex-list').innerHTML = GODS.map(function (g, i) { return entryHtml(g, isWon(i)); }).join('');
+
+        $('codex-final-state').textContent = md ? 'unlocked' : 'locked';
+        $('codex-final').innerHTML = md
+            ? '<p class="cx-note">Every myth of the gods and the mortals, together at last.</p>' +
+              '<div class="cx-head">⚡ The Gods</div>' + GODS.map(function (g) { return entryHtml(g, true); }).join('') +
+              '<div class="cx-head">🧑 The Mortals</div>' + MORTALS.map(function (g) { return entryHtml(g, true); }).join('')
+            : '<p class="cx-note">🔒 Complete all ' + MORT_N + ' mortal quests (' + mc + '/' + MORT_N + ' so far) to unlock the final level. It holds every myth of the gods and the mortals.</p>';
+    }
+    function onCard(e) {
+        var b = e.target.closest('.card'); if (!b || b.disabled) return;
         var i = +b.dataset.i;
-        travel('Travelling to ' + GODS[i].place + '...', function () { cur = i; favorEarned = false; renderPrep(); show('s-prep'); });
-    });
+        travel('Travelling to ' + ALL[i].place + '...', function () { cur = i; favorEarned = false; renderPrep(); show('s-prep'); });
+    }
+    $('cards').addEventListener('click', onCard);
+    $('mcards').addEventListener('click', onCard);
 
     /* ---------- "getting ready for the mission" ---------- */
     function renderPrep() {
-        var g = GODS[cur];
+        var g = ALL[cur];
         var opts = shuffle([{ t: g.right, ok: true }, { t: g.wq[0] }, { t: g.wq[1] }]);
         $('s-prep').style.setProperty('--c', g.col);
         $('s-prep').innerHTML =
             '<button class="back" id="p-back">← Back to the map</button>' +
-            '<div class="p-head"><div class="em">' + g.hero + '</div><div><div class="stage">Getting ready for the mission</div><h2>' + esc(g.name) + '</h2>' +
-            '<small>📍 ' + esc(g.place) + ' · Mission: ' + esc(g.mission) + ' · ' + stars(g.diff) + '</small></div></div>' +
+            '<div class="p-head"><div class="em">' + g.hero + '</div><div><div class="stage">' + (g.mortal ? 'Mortal quest: getting ready' : 'Getting ready for the mission') + '</div><h2>' + esc(g.name) + '</h2>' +
+            '<small>📍 ' + esc(g.place) + ' · Mission: ' + esc(g.mission) + ' · ' + stars(g.stars || g.diff) + '</small></div></div>' +
             '<div class="panel"><h3>📜 Read the passage</h3><p>' + esc(g.lore) + '</p><p>' + esc(g.boss) + '</p></div>' +
             '<div class="panel scout"><h3>🔭 Scout\'s report</h3><p>' + esc(g.hint) + '</p></div>' +
             '<div class="panel"><h3>❓ Answer for Divine Favor</h3><p><strong>' + esc(g.q) + '</strong></p>' +
@@ -743,7 +1087,7 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
 
     /* ---------- the mission itself ---------- */
     function startMission() {
-        var g = GODS[cur];
+        var g = ALL[cur];
         battle = newBattle(g, favorEarned); lock = false;
         var sc = $('s-mission'); sc.style.setProperty('--c', g.col);
         sc.innerHTML =
@@ -835,11 +1179,15 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
     }
 
     function endMission() {
-        var b = battle, g = b.g, w = b.over === 'win', i = GODS.indexOf(g);
+        var b = battle, g = b.g, w = b.over === 'win', i = ALL.indexOf(g);
         $(w ? 'foe' : 'hero').classList.add('dead');
+        var gd0 = godsDone(), md0 = mortalsDone();
         if (w && won.indexOf(i) < 0) { won.push(i); save(); }
+        var unlock = '';
+        if (w && !gd0 && godsDone()) unlock = '<div class="unlock-note">🔓 Myth Codex Level 1 complete! The Mortal Quests are now open on the map.</div>';
+        if (w && !md0 && mortalsDone()) unlock = '<div class="unlock-note">📖 Every mortal quest is done! The Myth Codex Final Level is unlocked.</div>';
         $('endbox').innerHTML = '<div class="end ' + (w ? 'win' : 'lose') + '"><div class="card-box">' +
-            (w ? '<h2>🏆 Victory!</h2><p>' + esc(g.win) + '</p><div class="epi">' + esc(g.epi) + '</div>'
+            (w ? '<h2>🏆 Victory!</h2><p>' + esc(g.win) + '</p><div class="epi">' + esc(g.epi) + '</div>' + unlock
                : '<h2>☠ Defeated</h2><p>' + esc(g.enemy.n) + ' was too strong this time. Study its pattern: what counters each kind of attack?</p>') +
             (w ? '' : '<button class="big-btn" id="e-retry">🔄 Retry the mission' + (favorEarned ? ' (Divine Favor restored)' : '') + '</button>') +
             '<button class="big-btn" id="e-map">🗺️ Back to the map</button></div></div>';
@@ -855,7 +1203,7 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
 
     $('enter').onclick = function () { $('intro').classList.add('gone'); };
     renderMap();
-    window.__mythos = { GODS: GODS, get battle() { return battle; }, doAct: doAct, won: function () { return won; } };
+    window.__mythos = { GODS: GODS, ALL: ALL, setWon: function (a) { won = a; renderMap(); }, get battle() { return battle; }, doAct: doAct, won: function () { return won; } };
 })();
 
 </script>
