@@ -34,6 +34,13 @@
     function godsDone() { return countWon(0, GODS_N) === GODS_N; }          /* Myth Codex Level 1 complete */
     function mortalsDone() { return countWon(GODS_N, MORT_N) === MORT_N; }  /* Myth Codex Final Level unlocked */
 
+    /* Display order only (easiest to hardest by star rating). Saved progress still uses the original indices. */
+    function byStars(list) {
+        return list.map(function (g, k) { return k; }).sort(function (a, b) {
+            return (list[a].stars || list[a].diff) - (list[b].stars || list[b].diff) || a - b;
+        });
+    }
+
     function cardHtml(g, i, locked) {
         var w = isWon(i);
         if (locked) {
@@ -51,24 +58,24 @@
     function renderMap() {
         var gd = godsDone(), md = mortalsDone(), gc = countWon(0, GODS_N), mc = countWon(GODS_N, MORT_N);
         $('count').textContent = gc; $('mcount').textContent = mc;
-        $('cards').innerHTML = GODS.map(function (g, i) { return cardHtml(g, i, false); }).join('');
+        $('cards').innerHTML = byStars(GODS).map(function (i) { return cardHtml(GODS[i], i, false); }).join('');
 
         $('mortal-lock').innerHTML = md
             ? '<div class="unlocked">🌟 All ' + MORT_N + ' mortal quests complete! The Myth Codex Final Level is unlocked below.</div>'
             : gd
             ? '<div class="unlocked">🔓 Mortal Quests are open: ' + mc + ' of ' + MORT_N + ' completed. Finish them all to unlock the Myth Codex final level.</div>'
             : '<div class="lockbar">🔒 Mortal Quests unlock when Myth Codex Level 1 is complete: finish all ' + GODS_N + ' god missions (' + gc + '/' + GODS_N + ' so far).</div>';
-        $('mcards').innerHTML = MORTALS.map(function (g, k) { return cardHtml(g, GODS_N + k, !gd); }).join('');
+        $('mcards').innerHTML = byStars(MORTALS).map(function (k) { return cardHtml(MORTALS[k], GODS_N + k, !gd); }).join('');
 
         $('codex-n').textContent = gc;
         $('codex-l1').textContent = gd ? '✔ complete' : gc + '/' + GODS_N;
-        $('codex-list').innerHTML = GODS.map(function (g, i) { return entryHtml(g, isWon(i)); }).join('');
+        $('codex-list').innerHTML = byStars(GODS).map(function (i) { return entryHtml(GODS[i], isWon(i)); }).join('');
 
         $('codex-final-state').textContent = md ? 'unlocked' : 'locked';
         $('codex-final').innerHTML = md
             ? '<p class="cx-note">Every myth of the gods and the mortals, together at last.</p>' +
-              '<div class="cx-head">⚡ The Gods</div>' + GODS.map(function (g) { return entryHtml(g, true); }).join('') +
-              '<div class="cx-head">🧑 The Mortals</div>' + MORTALS.map(function (g) { return entryHtml(g, true); }).join('')
+              '<div class="cx-head">⚡ The Gods</div>' + byStars(GODS).map(function (i) { return entryHtml(GODS[i], true); }).join('') +
+              '<div class="cx-head">🧑 The Mortals</div>' + byStars(MORTALS).map(function (k) { return entryHtml(MORTALS[k], true); }).join('')
             : '<p class="cx-note">🔒 Complete all ' + MORT_N + ' mortal quests (' + mc + '/' + MORT_N + ' so far) to unlock the final level. It holds every myth of the gods and the mortals.</p>';
     }
     function onCard(e) {
