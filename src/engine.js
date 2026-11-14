@@ -11,6 +11,20 @@ var MORTALS = MORTAL_MISSIONS.map(function (m, i) { return Object.assign({}, MOR
 /* Everything playable: gods first (indices 0-13), then mortals (14-31). Saved progress uses these indices. */
 var ALL = GODS.concat(MORTALS);
 
+/* Blessings: permanent upgrades the player picks after winning a quest. bl = { id: stacks }. */
+var BLESSINGS = [
+    { id: 'vigor',   i: '❤️', n: 'Vigor',        max: 2, d: '+4 max HP per stack' },
+    { id: 'might',   i: '⚔️', n: 'Might',        max: 1, d: 'Strike deals +1 damage' },
+    { id: 'spark',   i: '✨', n: 'Spark',        max: 1, d: 'Start each fight with +1 Focus' },
+    { id: 'regen',   i: '🌿', n: 'Second Wind',  max: 1, d: 'Restore 1 HP at the end of every second turn' },
+    { id: 'aegis',   i: '🛡️', n: 'Aegis',        max: 2, d: 'Take 3% less damage per stack' },
+    { id: 'keen',    i: '👁️', n: 'Keen Eyes',    max: 1, d: 'Enemy hides its intent 15% less often' },
+    { id: 'riposte', i: '🗡️', n: 'Quick Counter', max: 2, d: 'Counter-attacks deal +1 damage per stack' },
+    { id: 'echo',    i: '🔔', n: 'Divine Echo',  max: 2, d: 'Divine Favor heals +8 more per stack' }
+];
+function blCount(bl, id) { return (bl && bl[id]) || 0; }
+function favorHeal(bl) { return 40 + 8 * blCount(bl, 'echo'); }
+
 function rint(r, a, b) { return a + Math.floor(r() * (b - a + 1)); }
 
 function pickMove(b, r) {
@@ -23,14 +37,15 @@ function pickMove(b, r) {
 }
 function nextIntent(b, r) {
     b.intent = pickMove(b, r);
-    b.hidden = r() < (b.g.diff - 1) * 0.07;
+    b.hidden = r() < (b.g.diff - 1) * 0.07 * (1 - 0.15 * blCount(b.bl, 'keen'));
 }
 
-function newBattle(g, favorEarned, r) {
-    r = r || Math.random;
+function newBattle(g, favorEarned, r, bl) {
+    r = r || Math.random; bl = bl || {};
+    var hp = 100 + 4 * blCount(bl, 'vigor');
     var b = {
-        g: g, php: 100, pmax: 100, ehp: g.enemy.hp, emax: g.enemy.hp,
-        sta: 3, foc: 1, scale: (0.85 + 0.07 * g.diff) * (g.tune || 1), turn: 1,
+        g: g, bl: bl, php: hp, pmax: hp, ehp: g.enemy.hp, emax: g.enemy.hp,
+        sta: 3, foc: Math.min(3, 1 + blCount(bl, 'spark')), scale: (0.85 + 0.07 * g.diff) * (g.tune || 1), turn: 1,
         stun: 0, burn: { t: 0, d: 0 }, weak: { t: 0, m: 1 }, vuln: 0, rage: 0, ward: 0,
         reflect: false, thorns: 0, lit: 0, heads: 0,
         favor: !!favorEarned, used: false, forced: null, over: null, hidden: false, intent: null
@@ -43,7 +58,7 @@ function newBattle(g, favorEarned, r) {
 function useFavor(b) {
     if (!b.favor || b.used || b.over) return null;
     b.used = true;
-    var heal = Math.min(40, b.pmax - b.php);
+    var heal = Math.min(favorHeal(b.bl), b.pmax - b.php);
     b.php += heal; b.sta = 3; b.foc = 3; b.rage = Math.max(b.rage, 2);
     return { log: ['✨ Divine Favor! You heal ' + heal + ', refill Stamina and Focus, and your next 2 strikes deal double.'],
              ev: [{ side: 'p', type: 'heal', v: heal }] };
@@ -60,7 +75,7 @@ function act(b, a, r) {
 
     /* ---- player action ---- */
     if (a === 'strike') {
-        var d = rint(r, 13, 19);
+        var d = rint(r, 13, 19) + blCount(b.bl, 'might');
         if (b.rage > 0) { d *= 2; b.rage--; }
         if (b.vuln > 0) d *= 1.5;
         if (e.passive === 'armor' && !(b.vuln > 0)) d *= 0.5;
@@ -102,7 +117,7 @@ function act(b, a, r) {
     if (b.ehp <= 0) { b.ehp = 0; b.over = 'win'; return { log: L, ev: V }; }
 
     function riposte() {
-        var rp = 8; if (e.passive === 'armor' && !(b.vuln > 0)) rp = 4;
+        var rp = 8 + blCount(b.bl, 'riposte'); if (e.passive === 'armor' && !(b.vuln > 0)) rp = Math.round(rp / 2);
         b.ehp -= rp; L.push('Your counter-attack hits for ' + rp + '.'); V.push({ side: 'e', type: 'dmg', v: rp });
     }
 
@@ -121,7 +136,7 @@ function act(b, a, r) {
         var mult = 1;
         if (a === 'guard') mult = m.kind === 'HEAVY' ? 0.25 : (m.kind === 'QUICK' ? 0.5 : 1);
         if (a === 'dodge') mult = m.kind === 'QUICK' ? 0 : (m.kind === 'MAGIC' ? 0.5 : 1);
-        var dmg = Math.round(raw * mult);
+        var dmg = Math.round(raw * mult * (1 - 0.03 * blCount(b.bl, 'aegis')));
 
         if (b.reflect) {
             b.reflect = false;
@@ -155,6 +170,10 @@ function act(b, a, r) {
     if (b.vuln > 0) b.vuln--;
     if (b.lit > 0) b.lit--;
     if (b.thorns > 0) b.thorns--;
+    if (b.ehp > 0 && b.php > 0 && blCount(b.bl, 'regen') && b.turn % 2 === 0) {
+        var rg = Math.min(1, b.pmax - b.php);
+        if (rg > 0) { b.php += rg; L.push('Your resolve restores ' + rg + ' HP.'); V.push({ side: 'p', type: 'heal', v: rg }); }
+    }
     b.sta = Math.min(3, b.sta + 1);
     b.turn++;
 
@@ -164,7 +183,7 @@ function act(b, a, r) {
     return { log: L, ev: V };
 }
 
-if (typeof module !== 'undefined') module.exports = { GODS: GODS, newBattle: newBattle, act: act, useFavor: useFavor, KIND: KIND };
+if (typeof module !== 'undefined') module.exports = { BLESSINGS: BLESSINGS, favorHeal: favorHeal, GODS: GODS, newBattle: newBattle, act: act, useFavor: useFavor, KIND: KIND };
 
 /* Damage the enemy's current intent would do this turn if you take no counter-action (shown in the UI). */
 function estimate(b) {
@@ -172,6 +191,6 @@ function estimate(b) {
     var raw = m.dmg * b.scale + b.heads * 3;
     if (b.g.enemy.passive === 'enrage' && b.ehp < b.emax * 0.4) raw *= 1.35;
     if (b.weak.t > 0) raw *= b.weak.m;
-    return Math.round(raw);
+    return Math.round(raw * (1 - 0.03 * blCount(b.bl, 'aegis')));
 }
 if (typeof module !== 'undefined') module.exports.estimate = estimate;

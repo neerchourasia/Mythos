@@ -146,7 +146,8 @@ details.codex.final summary { color: #fde68a; }
 .act.favor { grid-column: 1 / -1; border-color: #fde047; background: linear-gradient(135deg, #5b4a00, #2d2400); text-align: center; }
 .act.favor.used { opacity: .4; }
 .act .key { float: right; opacity: .5; font-size: .7rem; border: 1px solid rgba(255,255,255,.4); border-radius: 4px; padding: 0 5px; }
-.end { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(5,5,10,.88); border-radius: 14px; animation: rise .4s ease-out; }
+.end { position: fixed; inset: 0; z-index: 55; display: flex; padding: 16px; overflow-y: auto; background: rgba(5,5,10,.9); animation: rise .4s ease-out; }
+.end .card-box { margin: auto; max-width: 560px; }
 .end .card-box { border-color: var(--c); }
 .end h2 { font-size: 1.8rem; }
 .end.lose h2 { color: #f87171; }
@@ -158,6 +159,25 @@ details.codex.final summary { color: #fde68a; }
     .act small { font-size: .7rem; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } .t-walker { left: calc(100% - 2.4rem); } }
+
+/* sound buttons */
+#snd { position: fixed; top: 10px; right: 10px; z-index: 60; display: flex; gap: 6px; }
+#snd button { width: 40px; height: 40px; font-size: 1.15rem; border-radius: 50%; background: rgba(0,0,0,.6); border: 2px solid var(--gold); color: #fff; }
+#snd button.off { opacity: .45; border-color: #777; text-decoration: line-through; }
+/* blessings */
+.bless-bar { margin: 0 0 12px; padding: 10px 14px; text-align: center; font-size: .92rem; background: var(--panel); border: 1px solid rgba(255,215,0,.35); border-radius: 10px; }
+.bless-bar b { color: var(--gold); margin-right: 6px; }
+.bless-offer { margin: 12px 0; padding: 14px; text-align: center; background: rgba(255,215,0,.08); border: 2px solid var(--gold); border-radius: 12px; animation: rise .4s ease-out; }
+.bless-offer h3 { color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
+.bless-offer p { margin: 6px 0 10px; font-style: normal; font-size: .9rem; }
+.bless-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.bl-pick { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 10px; color: #fff; background: #2a2a3d; border: 2px solid rgba(255,215,0,.5); border-radius: 10px; box-shadow: 0 4px 0 rgba(0,0,0,.4); transition: transform .12s, background .12s; }
+.bl-pick:hover { background: #36364f; transform: translateY(-3px); border-color: var(--gold); }
+.bl-pick .bl-i { font-size: 1.8rem; }
+.bl-pick small { opacity: .85; line-height: 1.3; }
+.bl-pick em { font-size: .78rem; color: #fde68a; }
+.bl-toggle { margin-top: 8px; padding: 10px 14px; color: #fff; border-radius: 8px; border: 1px solid rgba(255,255,255,.3); background: #5b1010; }
+.bl-toggle.on { background: #064e3b; border-color: #10b981; }
 
 </style>
 </head>
@@ -171,9 +191,12 @@ details.codex.final summary { color: #fde68a; }
   </div>
 </div>
 <div id="travel" class="gone"></div>
+<div id="snd"><button id="b-sfx" title="Sound effects" aria-label="Sound effects">🔊</button><button id="b-mus" title="Music" aria-label="Music">🎵</button></div>
 <main id="app">
   <section id="s-map" class="screen show">
     <div class="m-head"><h1>🏛️ The Pantheon</h1><p>Gods <b class="gold"><span id="count">0</span>/14</b> · Mortals <b class="gold"><span id="mcount">0</span>/18</b>. Higher stars mean harder fights.</p></div>
+    <div id="bless-bar" class="bless-bar"></div>
+    <div class="bless-slot"></div>
     <h2 class="section-title">⚡ The Gods</h2>
     <div class="grid" id="cards"></div>
     <h2 class="section-title">🧑 Mortal Quests</h2>
@@ -807,6 +830,20 @@ var MORTALS = MORTAL_MISSIONS.map(function (m, i) { return Object.assign({}, MOR
 /* Everything playable: gods first (indices 0-13), then mortals (14-31). Saved progress uses these indices. */
 var ALL = GODS.concat(MORTALS);
 
+/* Blessings: permanent upgrades the player picks after winning a quest. bl = { id: stacks }. */
+var BLESSINGS = [
+    { id: 'vigor',   i: '❤️', n: 'Vigor',        max: 2, d: '+4 max HP per stack' },
+    { id: 'might',   i: '⚔️', n: 'Might',        max: 1, d: 'Strike deals +1 damage' },
+    { id: 'spark',   i: '✨', n: 'Spark',        max: 1, d: 'Start each fight with +1 Focus' },
+    { id: 'regen',   i: '🌿', n: 'Second Wind',  max: 1, d: 'Restore 1 HP at the end of every second turn' },
+    { id: 'aegis',   i: '🛡️', n: 'Aegis',        max: 2, d: 'Take 3% less damage per stack' },
+    { id: 'keen',    i: '👁️', n: 'Keen Eyes',    max: 1, d: 'Enemy hides its intent 15% less often' },
+    { id: 'riposte', i: '🗡️', n: 'Quick Counter', max: 2, d: 'Counter-attacks deal +1 damage per stack' },
+    { id: 'echo',    i: '🔔', n: 'Divine Echo',  max: 2, d: 'Divine Favor heals +8 more per stack' }
+];
+function blCount(bl, id) { return (bl && bl[id]) || 0; }
+function favorHeal(bl) { return 40 + 8 * blCount(bl, 'echo'); }
+
 function rint(r, a, b) { return a + Math.floor(r() * (b - a + 1)); }
 
 function pickMove(b, r) {
@@ -819,14 +856,15 @@ function pickMove(b, r) {
 }
 function nextIntent(b, r) {
     b.intent = pickMove(b, r);
-    b.hidden = r() < (b.g.diff - 1) * 0.07;
+    b.hidden = r() < (b.g.diff - 1) * 0.07 * (1 - 0.15 * blCount(b.bl, 'keen'));
 }
 
-function newBattle(g, favorEarned, r) {
-    r = r || Math.random;
+function newBattle(g, favorEarned, r, bl) {
+    r = r || Math.random; bl = bl || {};
+    var hp = 100 + 4 * blCount(bl, 'vigor');
     var b = {
-        g: g, php: 100, pmax: 100, ehp: g.enemy.hp, emax: g.enemy.hp,
-        sta: 3, foc: 1, scale: (0.85 + 0.07 * g.diff) * (g.tune || 1), turn: 1,
+        g: g, bl: bl, php: hp, pmax: hp, ehp: g.enemy.hp, emax: g.enemy.hp,
+        sta: 3, foc: Math.min(3, 1 + blCount(bl, 'spark')), scale: (0.85 + 0.07 * g.diff) * (g.tune || 1), turn: 1,
         stun: 0, burn: { t: 0, d: 0 }, weak: { t: 0, m: 1 }, vuln: 0, rage: 0, ward: 0,
         reflect: false, thorns: 0, lit: 0, heads: 0,
         favor: !!favorEarned, used: false, forced: null, over: null, hidden: false, intent: null
@@ -839,7 +877,7 @@ function newBattle(g, favorEarned, r) {
 function useFavor(b) {
     if (!b.favor || b.used || b.over) return null;
     b.used = true;
-    var heal = Math.min(40, b.pmax - b.php);
+    var heal = Math.min(favorHeal(b.bl), b.pmax - b.php);
     b.php += heal; b.sta = 3; b.foc = 3; b.rage = Math.max(b.rage, 2);
     return { log: ['✨ Divine Favor! You heal ' + heal + ', refill Stamina and Focus, and your next 2 strikes deal double.'],
              ev: [{ side: 'p', type: 'heal', v: heal }] };
@@ -856,7 +894,7 @@ function act(b, a, r) {
 
     /* ---- player action ---- */
     if (a === 'strike') {
-        var d = rint(r, 13, 19);
+        var d = rint(r, 13, 19) + blCount(b.bl, 'might');
         if (b.rage > 0) { d *= 2; b.rage--; }
         if (b.vuln > 0) d *= 1.5;
         if (e.passive === 'armor' && !(b.vuln > 0)) d *= 0.5;
@@ -898,7 +936,7 @@ function act(b, a, r) {
     if (b.ehp <= 0) { b.ehp = 0; b.over = 'win'; return { log: L, ev: V }; }
 
     function riposte() {
-        var rp = 8; if (e.passive === 'armor' && !(b.vuln > 0)) rp = 4;
+        var rp = 8 + blCount(b.bl, 'riposte'); if (e.passive === 'armor' && !(b.vuln > 0)) rp = Math.round(rp / 2);
         b.ehp -= rp; L.push('Your counter-attack hits for ' + rp + '.'); V.push({ side: 'e', type: 'dmg', v: rp });
     }
 
@@ -917,7 +955,7 @@ function act(b, a, r) {
         var mult = 1;
         if (a === 'guard') mult = m.kind === 'HEAVY' ? 0.25 : (m.kind === 'QUICK' ? 0.5 : 1);
         if (a === 'dodge') mult = m.kind === 'QUICK' ? 0 : (m.kind === 'MAGIC' ? 0.5 : 1);
-        var dmg = Math.round(raw * mult);
+        var dmg = Math.round(raw * mult * (1 - 0.03 * blCount(b.bl, 'aegis')));
 
         if (b.reflect) {
             b.reflect = false;
@@ -951,6 +989,10 @@ function act(b, a, r) {
     if (b.vuln > 0) b.vuln--;
     if (b.lit > 0) b.lit--;
     if (b.thorns > 0) b.thorns--;
+    if (b.ehp > 0 && b.php > 0 && blCount(b.bl, 'regen') && b.turn % 2 === 0) {
+        var rg = Math.min(1, b.pmax - b.php);
+        if (rg > 0) { b.php += rg; L.push('Your resolve restores ' + rg + ' HP.'); V.push({ side: 'p', type: 'heal', v: rg }); }
+    }
     b.sta = Math.min(3, b.sta + 1);
     b.turn++;
 
@@ -960,7 +1002,7 @@ function act(b, a, r) {
     return { log: L, ev: V };
 }
 
-if (typeof module !== 'undefined') module.exports = { GODS: GODS, newBattle: newBattle, act: act, useFavor: useFavor, KIND: KIND };
+if (typeof module !== 'undefined') module.exports = { BLESSINGS: BLESSINGS, favorHeal: favorHeal, GODS: GODS, newBattle: newBattle, act: act, useFavor: useFavor, KIND: KIND };
 
 /* Damage the enemy's current intent would do this turn if you take no counter-action (shown in the UI). */
 function estimate(b) {
@@ -968,9 +1010,95 @@ function estimate(b) {
     var raw = m.dmg * b.scale + b.heads * 3;
     if (b.g.enemy.passive === 'enrage' && b.ehp < b.emax * 0.4) raw *= 1.35;
     if (b.weak.t > 0) raw *= b.weak.m;
-    return Math.round(raw);
+    return Math.round(raw * (1 - 0.03 * blCount(b.bl, 'aegis')));
 }
 if (typeof module !== 'undefined') module.exports.estimate = estimate;
+
+/* Synthesized sound effects and background music (WebAudio). No audio files, so it works offline. */
+var SFX = (function () {
+    var ctx = null, master = null, musBus = null, noiseBuf = null;
+    var sfxOn = true, musOn = true, mood = 'calm', timer = null, step = 0;
+    try { sfxOn = localStorage.getItem('mythos_sfx') !== '0'; musOn = localStorage.getItem('mythos_mus') !== '0'; } catch (e) {}
+
+    function init() {
+        if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+        var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+        ctx = new AC();
+        master = ctx.createGain(); master.gain.value = 0.55; master.connect(ctx.destination);
+        musBus = ctx.createGain(); musBus.gain.value = 0.35; musBus.connect(master);
+        noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+        var d = noiseBuf.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        if (musOn) startMusic();
+    }
+
+    function tone(f, dur, type, vol, to, delay, bus) {
+        if (!ctx) return;
+        var t = ctx.currentTime + (delay || 0), o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+        if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.2, t + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(bus || master); o.start(t); o.stop(t + dur + 0.05);
+    }
+    function noise(dur, vol, ftype, f0, f1, delay) {
+        if (!ctx) return;
+        var t = ctx.currentTime + (delay || 0), s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
+        s.buffer = noiseBuf; fl.type = ftype || 'bandpass'; fl.frequency.setValueAtTime(f0 || 1000, t);
+        if (f1) fl.frequency.exponentialRampToValueAtTime(f1, t + dur);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.2, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        s.connect(fl); fl.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.05);
+    }
+    function arp(notes, gap, type, vol, len) { notes.forEach(function (f, k) { tone(f, len || 0.3, type || 'triangle', vol || 0.16, null, k * gap); }); }
+
+    var FX = {
+        click:  function () { tone(660, 0.07, 'triangle', 0.12); },
+        strike: function () { noise(0.14, 0.45, 'bandpass', 2200, 500); tone(190, 0.16, 'sawtooth', 0.22, 70); },
+        hit:    function () { tone(150, 0.2, 'square', 0.2, 55); noise(0.09, 0.3, 'highpass', 1500); },
+        hurt:   function () { tone(95, 0.32, 'sawtooth', 0.3, 40); noise(0.18, 0.3, 'lowpass', 900, 200); },
+        guard:  function () { tone(520, 0.3, 'square', 0.1, 400); tone(1040, 0.25, 'triangle', 0.1); noise(0.05, 0.2, 'highpass', 4000); },
+        dodge:  function () { noise(0.3, 0.4, 'bandpass', 400, 2600); },
+        block:  function () { tone(700, 0.22, 'triangle', 0.14, 500); },
+        miss:   function () { tone(320, 0.18, 'sine', 0.1, 140); },
+        heal:   function () { arp([523, 659, 784], 0.07, 'triangle', 0.13, 0.25); },
+        sig:    function () { tone(220, 0.55, 'sawtooth', 0.18, 900); arp([440, 554, 659, 880], 0.08, 'triangle', 0.15, 0.5); noise(0.4, 0.25, 'bandpass', 600, 3000); },
+        favor:  function () { arp([392, 523, 659, 784, 1047, 1319], 0.07, 'sine', 0.16, 0.5); },
+        charge: function () { tone(110, 0.6, 'sawtooth', 0.14, 260); },
+        bless:  function () { arp([784, 988, 1175, 1568], 0.09, 'sine', 0.15, 0.45); },
+        travel: function () { noise(0.5, 0.12, 'lowpass', 700, 300); },
+        win:    function () { arp([392, 494, 587, 784, 988], 0.13, 'triangle', 0.2, 0.5); tone(196, 1.0, 'sine', 0.12, null, 0.1); },
+        lose:   function () { arp([330, 277, 220, 165], 0.22, 'sawtooth', 0.17, 0.5); }
+    };
+
+    /* ---- background music: slow ambient notes on a Phrygian-flavoured scale, with a heartbeat drum in battle ---- */
+    var SCALE = [146.83, 155.56, 174.61, 196.0, 220.0, 233.08, 261.63, 293.66];
+    var MELODY = [0, -1, 3, -1, 4, -1, 2, 1, -1, 3, -1, 5, 4, -1, 2, -1, 0, -1, 1, -1, 2, 3, -1, 4, 6, -1, 5, -1, 3, 2, 1, -1];
+    function tick() {
+        if (!ctx || !musOn) return;
+        var n = MELODY[step % MELODY.length], battle = mood === 'battle';
+        if (n >= 0) tone(SCALE[n] * (battle ? 1 : 2), battle ? 0.35 : 0.9, battle ? 'sawtooth' : 'triangle', battle ? 0.05 : 0.09, null, 0, musBus);
+        if (step % 16 === 0) { tone(73.42, 3.2, 'sine', 0.16, null, 0, musBus); tone(110, 3.2, 'sine', 0.08, null, 0, musBus); }
+        if (battle && step % 2 === 0) tone(80, 0.18, 'sine', 0.35, 45, 0, musBus);
+        step++;
+    }
+    function startMusic() { if (!ctx || timer) return; step = 0; tick(); timer = setInterval(tick, mood === 'battle' ? 300 : 620); }
+    function stopMusic() { if (timer) { clearInterval(timer); timer = null; } }
+
+    document.addEventListener('visibilitychange', function () {
+        if (!ctx) return;
+        if (document.hidden) ctx.suspend(); else ctx.resume();
+    });
+
+    return {
+        init: init,
+        play: function (name) { if (sfxOn && ctx && FX[name]) FX[name](); },
+        mood: function (m) { if (m === mood) return; mood = m; if (timer) { stopMusic(); if (musOn) startMusic(); } },
+        isSfx: function () { return sfxOn; },
+        isMusic: function () { return musOn; },
+        setSfx: function (on) { sfxOn = !!on; try { localStorage.setItem('mythos_sfx', on ? '1' : '0'); } catch (e) {} if (on) { init(); FX.click(); } },
+        setMusic: function (on) { musOn = !!on; try { localStorage.setItem('mythos_mus', on ? '1' : '0'); } catch (e) {} if (on) { init(); startMusic(); } else stopMusic(); }
+    };
+})();
 
 /* Screens: map -> getting ready -> mission. Needs engine.js (GODS, newBattle, act, useFavor, estimate, KIND). */
 (function () {
@@ -979,7 +1107,45 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
     try { won = JSON.parse(localStorage.getItem('mythos_won') || '[]'); } catch (e) {}
     function save() { try { localStorage.setItem('mythos_won', JSON.stringify(won)); } catch (e) {} }
 
-    var cur = 0, favorEarned = false, battle = null, lock = false, travelTimer = null;
+    /* Blessings: bless = { id: stacks }, pend = offers still to be chosen (each an array of 3 ids), blessOn = use them in fights. */
+    var bless = {}, pend = [], blessOn = true;
+    try { bless = JSON.parse(localStorage.getItem('mythos_bless') || '{}') || {}; } catch (e) {}
+    try { pend = JSON.parse(localStorage.getItem('mythos_pend') || '[]') || []; } catch (e) {}
+    try { blessOn = localStorage.getItem('mythos_blon') !== '0'; } catch (e) {}
+    function saveBless() { try { localStorage.setItem('mythos_bless', JSON.stringify(bless)); localStorage.setItem('mythos_pend', JSON.stringify(pend)); localStorage.setItem('mythos_blon', blessOn ? '1' : '0'); } catch (e) {} }
+    function blDef(id) { for (var i = 0; i < BLESSINGS.length; i++) if (BLESSINGS[i].id === id) return BLESSINGS[i]; }
+    function blOwned() { return BLESSINGS.filter(function (b) { return bless[b.id] > 0; }); }
+    function blLine(list) { return list.map(function (b) { return b.i + ' ' + b.n + (bless[b.id] > 1 ? ' ×' + bless[b.id] : ''); }).join(' · '); }
+    function activeBl() { return blessOn ? bless : null; }
+    function makeOffer() {
+        var pool = BLESSINGS.filter(function (b) { return (bless[b.id] || 0) < b.max; }), out = [];
+        pool = shuffle(pool); for (var i = 0; i < 3 && i < pool.length; i++) out.push(pool[i].id);
+        return out;
+    }
+    function offerHtml() {
+        if (!pend.length) return '';
+        return '<div class="bless-offer"><h3>🏺 Choose a blessing</h3><p>The gods reward your victory. Pick one permanent upgrade' + (pend.length > 1 ? ' (' + pend.length + ' rewards waiting)' : '') + ':</p><div class="bless-opts">' +
+            pend[0].map(function (id) {
+                var b = blDef(id), n = bless[id] || 0;
+                return '<button class="bl-pick" data-id="' + id + '"><span class="bl-i">' + b.i + '</span><b>' + esc(b.n) + '</b><small>' + esc(b.d) + '</small><em>Level ' + n + ' → ' + (n + 1) + ' of ' + b.max + '</em></button>';
+            }).join('') + '</div></div>';
+    }
+    function refreshBless() {
+        [].forEach.call(document.querySelectorAll('.bless-slot'), function (el) { el.innerHTML = offerHtml(); });
+        var own = blOwned(), bar = $('bless-bar');
+        if (bar) bar.innerHTML = own.length
+            ? '<b>🏺 Blessings</b> ' + esc(blLine(own)) + (blessOn ? '' : ' <i>(switched off)</i>')
+            : '<b>🏺 Blessings</b> Win a quest to earn your first permanent upgrade.';
+    }
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('.bl-pick'); if (!b || !pend.length) return;
+        var id = b.dataset.id; if (pend[0].indexOf(id) < 0) return;
+        bless[id] = (bless[id] || 0) + 1; pend.shift(); saveBless();
+        SFX.play('bless'); refreshBless();
+        if ($('p-bl')) fillPrepBless();
+    });
+
+    var curAct = '', cur = 0, favorEarned = false, battle = null, lock = false, travelTimer = null;
     var short = function (g) { return g.name.split(':')[0]; };
     var stars = function (n) { return new Array(n + 1).join('★') + new Array(6 - n).join('☆'); };
     function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -988,13 +1154,14 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
     function show(id) {
         ['s-map', 's-prep', 's-mission'].forEach(function (s) { $(s).classList.toggle('show', s === id); });
         window.scrollTo(0, 0);
+        SFX.mood(id === 's-mission' ? 'battle' : 'calm');
     }
 
     /* ---------- travelling between places ---------- */
     function travel(text, cb) {
         var t = $('travel');
         t.innerHTML = '<div class="t-card"><div class="t-text">' + esc(text) + '</div><div class="t-road"><div class="t-walker">🚶</div></div><small>click to skip</small></div>';
-        t.classList.remove('gone');
+        t.classList.remove('gone'); SFX.play('travel');
         var done = false;
         function go() { if (done) return; done = true; clearTimeout(travelTimer); t.classList.add('gone'); cb(); }
         t.onclick = go;
@@ -1031,7 +1198,7 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
     }
     function renderMap() {
         var gd = godsDone(), md = mortalsDone(), gc = countWon(0, GODS_N), mc = countWon(GODS_N, MORT_N);
-        $('count').textContent = gc; $('mcount').textContent = mc;
+        $('count').textContent = gc; $('mcount').textContent = mc; refreshBless();
         $('cards').innerHTML = byStars(GODS).map(function (i) { return cardHtml(GODS[i], i, false); }).join('');
 
         $('mortal-lock').innerHTML = md
@@ -1072,9 +1239,10 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
             '<div class="panel"><h3>📜 Read the passage</h3><p>' + esc(g.lore) + '</p><p>' + esc(g.boss) + '</p></div>' +
             '<div class="panel scout"><h3>🔭 Scout\'s report</h3><p>' + esc(g.hint) + '</p></div>' +
             '<div class="panel"><h3>❓ Answer for Divine Favor</h3><p><strong>' + esc(g.q) + '</strong></p>' +
-            '<p style="font-size:.85rem;opacity:.8">A correct answer earns a one-time boost you can use at any moment in the fight: heal 40, refill Stamina and Focus, and double your next 2 strikes.</p>' +
+            '<p style="font-size:.85rem;opacity:.8">A correct answer earns a one-time boost you can use at any moment in the fight: heal ' + favorHeal(activeBl()) + ', refill Stamina and Focus, and double your next 2 strikes.</p>' +
             '<div id="p-opts">' + opts.map(function (o, k) { return '<button class="opt" data-k="' + k + '">' + esc(o.t) + '</button>'; }).join('') + '</div>' +
-            '<div id="p-fb"></div></div><div id="p-go"></div>';
+            '<div id="p-fb"></div></div><div class="panel" id="p-bl"></div><div class="bless-slot"></div><div id="p-go"></div>';
+        fillPrepBless(); refreshBless();
         $('p-back').onclick = function () { renderMap(); show('s-map'); };
         $('p-opts').onclick = function (e) {
             var b = e.target.closest('.opt'); if (!b || b.disabled) return;
@@ -1092,10 +1260,19 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
         };
     }
 
+    function fillPrepBless() {
+        var own = blOwned(), el = $('p-bl'); if (!el) return;
+        if (!own.length) { el.style.display = 'none'; return; }
+        el.style.display = '';
+        el.innerHTML = '<h3>🏺 Your blessings</h3><p>' + esc(blLine(own)) + '</p>' +
+            '<button class="bl-toggle' + (blessOn ? ' on' : '') + '" id="p-bltog">' + (blessOn ? '✔ Blessings ON (easier)' : '✖ Blessings OFF (pure challenge)') + '</button>';
+        $('p-bltog').onclick = function () { blessOn = !blessOn; saveBless(); fillPrepBless(); refreshBless(); };
+    }
+
     /* ---------- the mission itself ---------- */
     function startMission() {
         var g = ALL[cur];
-        battle = newBattle(g, favorEarned); lock = false;
+        battle = newBattle(g, favorEarned, null, activeBl()); lock = false;
         var sc = $('s-mission'); sc.style.setProperty('--c', g.col);
         sc.innerHTML =
             '<div class="ms-top"><button class="back" id="m-flee" style="margin:0">🏃 Flee to the map</button><h2>' + esc(g.mission) + '</h2></div>' +
@@ -1114,12 +1291,13 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
             '<button class="act dodge" data-a="dodge"><span class="key">3</span><b>💨 ' + esc(g.dodge) + '</b><small>Costs 1 Stamina · avoids Quick attacks, halves Magic</small></button>' +
             '<button class="act sig" data-a="sig"><span class="key">4</span><b>' + g.sig.i + ' ' + esc(g.sig.n) + '</b><small>Needs 3 Focus · ' + esc(g.sig.d) + '</small></button>' +
             (favorEarned
-                ? '<button class="act favor" data-a="favor"><span class="key">F</span><b>✨ Divine Favor (once)</b><small>Free action: heal 40, refill Stamina and Focus, next 2 strikes double</small></button>'
+                ? '<button class="act favor" data-a="favor"><span class="key">F</span><b>✨ Divine Favor (once)</b><small>Free action: heal ' + favorHeal(activeBl()) + ', refill Stamina and Focus, next 2 strikes double</small></button>'
                 : '<button class="act favor used" disabled><b>🔒 No Divine Favor</b><small>You missed the question in the preparation screen.</small></button>') +
             '</div>';
         $('m-flee').onclick = function () { renderMap(); show('s-map'); };
         $('acts').onclick = function (e) { var b = e.target.closest('.act'); if (b && !b.disabled) doAct(b.dataset.a); };
-        $('log').innerHTML = '<div class="new">The mission begins: ' + esc(g.mission) + '. Read the enemy\'s intent each turn!</div>';
+        $('log').innerHTML = '<div class="new">The mission begins: ' + esc(g.mission) + '. Read the enemy\'s intent each turn!</div>' +
+            (activeBl() && blOwned().length ? '<div class="new">🏺 Blessings active: ' + esc(blLine(blOwned())) + '</div>' : '');
         renderBattle(); show('s-mission');
     }
 
@@ -1154,6 +1332,7 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
             if (a === 'favor') off = !!b.over || b.used;
             if (a) x.disabled = off; if (a === 'favor' && b.used) x.classList.add('used');
         });
+        if (!b.over && !b.hidden && b.intent.kind === 'CHARGE') setTimeout(function () { SFX.play('charge'); }, 350);
     }
 
     function popup(side, type, v) {
@@ -1162,6 +1341,7 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
         el.textContent = type === 'dmg' ? '-' + v : type === 'heal' ? '+' + v : type === 'block' ? 'BLOCKED!' : 'MISS';
         el.style.left = (side === 'e' ? 66 : 20) + '%'; el.style.top = '30%';
         arena.appendChild(el); setTimeout(function () { el.remove(); }, 1000);
+        SFX.play(type === 'dmg' ? (side === 'e' ? 'hit' : 'hurt') : type === 'heal' ? (curAct === 'favor' ? '' : 'heal') : type === 'block' ? 'block' : 'miss');
         if (type === 'dmg') {
             var sp = $(side === 'e' ? 'foe' : 'hero'); sp.classList.remove('hit'); void sp.offsetWidth; sp.classList.add('hit');
         }
@@ -1179,6 +1359,7 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
         var res = a === 'favor' ? useFavor(battle) : act(battle, a);
         if (!res) return;
         if (res.invalid) { playEvents(res); return; }
+        curAct = a; SFX.play(a === 'favor' ? 'favor' : a);
         lock = true; setTimeout(function () { lock = false; }, 300);
         var sp = $('hero'); if (a === 'strike' || a === 'sig') { sp.classList.remove('slam'); void sp.offsetWidth; sp.classList.add('slam'); }
         playEvents(res); renderBattle();
@@ -1189,16 +1370,19 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
         var b = battle, g = b.g, w = b.over === 'win', i = ALL.indexOf(g);
         $(w ? 'foe' : 'hero').classList.add('dead');
         var gd0 = godsDone(), md0 = mortalsDone();
-        if (w && won.indexOf(i) < 0) { won.push(i); save(); }
+        var first = w && won.indexOf(i) < 0;
+        if (first) { won.push(i); save(); var offer = makeOffer(); if (offer.length) { pend.push(offer); saveBless(); } }
+        SFX.play(w ? 'win' : 'lose');
         var unlock = '';
         if (w && !gd0 && godsDone()) unlock = '<div class="unlock-note">🔓 Myth Codex Level 1 complete! The Mortal Quests are now open on the map.</div>';
         if (w && !md0 && mortalsDone()) unlock = '<div class="unlock-note">📖 Every mortal quest is done! The Myth Codex Final Level is unlocked.</div>';
         $('endbox').innerHTML = '<div class="end ' + (w ? 'win' : 'lose') + '"><div class="card-box">' +
-            (w ? '<h2>🏆 Victory!</h2><p>' + esc(g.win) + '</p><div class="epi">' + esc(g.epi) + '</div>' + unlock
+            (w ? '<h2>🏆 Victory!</h2><p>' + esc(g.win) + '</p><div class="epi">' + esc(g.epi) + '</div>' + unlock + (first ? '<div class="bless-slot"></div>' : '')
                : '<h2>☠ Defeated</h2><p>' + esc(g.enemy.n) + ' was too strong this time. Study its pattern: what counters each kind of attack?</p>') +
             (w ? '' : '<button class="big-btn" id="e-retry">🔄 Retry the mission' + (favorEarned ? ' (Divine Favor restored)' : '') + '</button>') +
             '<button class="big-btn" id="e-map">🗺️ Back to the map</button></div></div>';
         if (!w) $('e-retry').onclick = startMission;
+        if (first) refreshBless();
         $('e-map').onclick = function () { renderMap(); show('s-map'); };
     }
 
@@ -1208,9 +1392,20 @@ if (typeof module !== 'undefined') module.exports.estimate = estimate;
         if (m) { var btn = document.querySelector('.act[data-a="' + m + '"]'); if (btn && !btn.disabled) doAct(m); }
     });
 
-    $('enter').onclick = function () { $('intro').classList.add('gone'); };
+    $('enter').onclick = function () { SFX.init(); $('intro').classList.add('gone'); };
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (b && !b.closest('#acts') && !b.closest('#snd') && !b.classList.contains('bl-pick')) SFX.play('click');
+    });
+    function sndButtons() {
+        $('b-sfx').textContent = SFX.isSfx() ? '🔊' : '🔇'; $('b-sfx').classList.toggle('off', !SFX.isSfx());
+        $('b-mus').classList.toggle('off', !SFX.isMusic());
+        $('b-sfx').setAttribute('aria-pressed', SFX.isSfx()); $('b-mus').setAttribute('aria-pressed', SFX.isMusic());
+    }
+    $('b-sfx').onclick = function () { SFX.setSfx(!SFX.isSfx()); sndButtons(); };
+    $('b-mus').onclick = function () { SFX.setMusic(!SFX.isMusic()); sndButtons(); };
+    sndButtons();
     renderMap();
-    window.__mythos = { GODS: GODS, ALL: ALL, setWon: function (a) { won = a; renderMap(); }, get battle() { return battle; }, doAct: doAct, won: function () { return won; } };
+    window.__mythos = { GODS: GODS, ALL: ALL, setWon: function (a) { won = a; renderMap(); }, get battle() { return battle; }, doAct: doAct, won: function () { return won; }, bless: function () { return bless; }, pend: function () { return pend; } };
 })();
 
 </script>
