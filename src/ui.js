@@ -122,6 +122,18 @@
         var i = +b.dataset.i;
         travel('Travelling to ' + ALL[i].place + '...', function () { cur = i; favorEarned = false; renderPrep(); show('s-prep'); });
     }
+    /* Restart the whole game: needs two clicks so it cannot be done by accident. */
+    var resetTimer = null;
+    $('b-reset').onclick = function () {
+        var b = $('b-reset');
+        if (!b.classList.contains('armed')) {
+            b.classList.add('armed'); b.textContent = '⚠️ Click again to erase ALL progress';
+            resetTimer = setTimeout(disarm, 4000); return;
+        }
+        disarm(); won = []; bless = {}; pend = []; blessOn = true; save(); saveBless();
+        renderMap(); window.scrollTo(0, 0);
+    };
+    function disarm() { clearTimeout(resetTimer); var b = $('b-reset'); b.classList.remove('armed'); b.textContent = '🔄 Restart game (erase progress)'; }
     $('cards').addEventListener('click', onCard);
     $('mcards').addEventListener('click', onCard);
 
@@ -173,7 +185,7 @@
         battle = newBattle(g, favorEarned, null, activeBl()); lock = false;
         var sc = $('s-mission'); sc.style.setProperty('--c', g.col);
         sc.innerHTML =
-            '<div class="ms-top"><button class="back" id="m-flee" style="margin:0">🏃 Flee to the map</button><h2>' + esc(g.mission) + '</h2></div>' +
+            '<div class="ms-top"><button class="back" id="m-flee" style="margin:0">🏃 Flee to the map</button><button class="back" id="m-restart" style="margin:0 0 0 8px">🔄 Restart fight</button><h2>' + esc(g.mission) + '</h2></div>' +
             '<div class="wrap"><div class="arena" id="arena"><div class="scenery">' + g.scenery + '</div>' +
             '<div class="side"><div class="nm">' + esc(short(g)) + ' (you)</div><div class="sprite" id="hero">' + g.hero + '</div>' +
             '<div class="bar"><i id="php"></i></div><div class="num" id="phptxt"></div>' +
@@ -193,6 +205,7 @@
                 : '<button class="act favor used" disabled><b>🔒 No Divine Favor</b><small>You missed the question in the preparation screen.</small></button>') +
             '</div>';
         $('m-flee').onclick = function () { renderMap(); show('s-map'); };
+        $('m-restart').onclick = startMission;
         $('acts').onclick = function (e) { var b = e.target.closest('.act'); if (b && !b.disabled) doAct(b.dataset.a); };
         $('log').innerHTML = '<div class="new">The mission begins: ' + esc(g.mission) + '. Read the enemy\'s intent each turn!</div>' +
             (activeBl() && blOwned().length ? '<div class="new">🏺 Blessings active: ' + esc(blLine(blOwned())) + '</div>' : '');

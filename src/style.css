@@ -167,3 +167,7 @@ details.codex.final summary { color: #fde68a; }
 .bl-pick em { font-size: .78rem; color: #fde68a; }
 .bl-toggle { margin-top: 8px; padding: 10px 14px; color: #fff; border-radius: 8px; border: 1px solid rgba(255,255,255,.3); background: #5b1010; }
 .bl-toggle.on { background: #064e3b; border-color: #10b981; }
+
+.reset-btn { display: block; margin: 26px auto 10px; padding: 10px 16px; color: #fca5a5; background: transparent; border: 1px solid #7f1d1d; border-radius: 8px; }
+.reset-btn:hover { background: #3b0d0d; }
+.reset-btn.armed { background: #991b1b; color: #fff; border-color: #ef4444; }

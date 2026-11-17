@@ -179,6 +179,10 @@ details.codex.final summary { color: #fde68a; }
 .bl-toggle { margin-top: 8px; padding: 10px 14px; color: #fff; border-radius: 8px; border: 1px solid rgba(255,255,255,.3); background: #5b1010; }
 .bl-toggle.on { background: #064e3b; border-color: #10b981; }
 
+.reset-btn { display: block; margin: 26px auto 10px; padding: 10px 16px; color: #fca5a5; background: transparent; border: 1px solid #7f1d1d; border-radius: 8px; }
+.reset-btn:hover { background: #3b0d0d; }
+.reset-btn.armed { background: #991b1b; color: #fff; border-color: #ef4444; }
+
 </style>
 </head>
 <body>
@@ -205,6 +209,7 @@ details.codex.final summary { color: #fde68a; }
     <h2 class="section-title">📖 Myth Codex</h2>
     <details class="codex"><summary>Level 1: The Gods (<span id="codex-l1">0/14</span>) · <span id="codex-n">0</span>/14 myths</summary><div id="codex-list"></div></details>
     <details class="codex final"><summary>🌟 Final Level: All Myths (<span id="codex-final-state">locked</span>)</summary><div id="codex-final"></div></details>
+    <button class="reset-btn" id="b-reset">🔄 Restart game (erase progress)</button>
   </section>
   <section id="s-prep" class="screen"></section>
   <section id="s-mission" class="screen"></section>
@@ -1224,6 +1229,18 @@ var SFX = (function () {
         var i = +b.dataset.i;
         travel('Travelling to ' + ALL[i].place + '...', function () { cur = i; favorEarned = false; renderPrep(); show('s-prep'); });
     }
+    /* Restart the whole game: needs two clicks so it cannot be done by accident. */
+    var resetTimer = null;
+    $('b-reset').onclick = function () {
+        var b = $('b-reset');
+        if (!b.classList.contains('armed')) {
+            b.classList.add('armed'); b.textContent = '⚠️ Click again to erase ALL progress';
+            resetTimer = setTimeout(disarm, 4000); return;
+        }
+        disarm(); won = []; bless = {}; pend = []; blessOn = true; save(); saveBless();
+        renderMap(); window.scrollTo(0, 0);
+    };
+    function disarm() { clearTimeout(resetTimer); var b = $('b-reset'); b.classList.remove('armed'); b.textContent = '🔄 Restart game (erase progress)'; }
     $('cards').addEventListener('click', onCard);
     $('mcards').addEventListener('click', onCard);
 
@@ -1275,7 +1292,7 @@ var SFX = (function () {
         battle = newBattle(g, favorEarned, null, activeBl()); lock = false;
         var sc = $('s-mission'); sc.style.setProperty('--c', g.col);
         sc.innerHTML =
-            '<div class="ms-top"><button class="back" id="m-flee" style="margin:0">🏃 Flee to the map</button><h2>' + esc(g.mission) + '</h2></div>' +
+            '<div class="ms-top"><button class="back" id="m-flee" style="margin:0">🏃 Flee to the map</button><button class="back" id="m-restart" style="margin:0 0 0 8px">🔄 Restart fight</button><h2>' + esc(g.mission) + '</h2></div>' +
             '<div class="wrap"><div class="arena" id="arena"><div class="scenery">' + g.scenery + '</div>' +
             '<div class="side"><div class="nm">' + esc(short(g)) + ' (you)</div><div class="sprite" id="hero">' + g.hero + '</div>' +
             '<div class="bar"><i id="php"></i></div><div class="num" id="phptxt"></div>' +
@@ -1295,6 +1312,7 @@ var SFX = (function () {
                 : '<button class="act favor used" disabled><b>🔒 No Divine Favor</b><small>You missed the question in the preparation screen.</small></button>') +
             '</div>';
         $('m-flee').onclick = function () { renderMap(); show('s-map'); };
+        $('m-restart').onclick = startMission;
         $('acts').onclick = function (e) { var b = e.target.closest('.act'); if (b && !b.disabled) doAct(b.dataset.a); };
         $('log').innerHTML = '<div class="new">The mission begins: ' + esc(g.mission) + '. Read the enemy\'s intent each turn!</div>' +
             (activeBl() && blOwned().length ? '<div class="new">🏺 Blessings active: ' + esc(blLine(blOwned())) + '</div>' : '');
